@@ -1,7 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { appRoutes, routerFuture } from './routes'
+
+vi.mock('../components/board/ChessBoardStage', () => ({
+  ChessBoardStage: () => <div>3D chess board foundation</div>,
+}))
 
 function renderRoute(path: string) {
   const router = createMemoryRouter(appRoutes, {
@@ -27,9 +31,10 @@ describe('app routes', () => {
   it('renders the game shell scaffold route', () => {
     renderRoute('/game')
 
-    expect(
-      screen.getByRole('heading', { name: /game shell/i }),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/canvas mount point is ready/i)).toBeInTheDocument()
+    expect(screen.getByText(/3d chess board foundation/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute(
+      'href',
+      '/',
+    )
   })
 })
