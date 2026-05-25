@@ -7,5 +7,7 @@ export {
   rankEasyMoves,
   scoreEasyMove,
   searchBestMove,
+  searchBestMoveAsync,
   selectAiMove,
+  selectAiMoveAsync,
 } from '../domain/ai'

@@ -5,7 +5,9 @@ import {
   createAiSearchDiagnostics,
   scoreEasyMove,
   searchBestMove,
+  searchBestMoveAsync,
   selectAiMove,
+  selectAiMoveAsync,
 } from './engine'
 import { createChessGame, generateLegalMoves } from '../chess/engine'
 import type { AiDifficulty } from '../types/ai'
@@ -194,6 +196,57 @@ describe('selectAiMove', () => {
     expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
     expect(diagnostics.positionsEvaluated).toBeLessThanOrEqual(64)
     expect(diagnostics.budgetExhausted).toBe(true)
+  })
+
+  it('provides a cooperative async path for hard mode search', async () => {
+    const game = createChessGame()
+    const legalMoveKeys = new Set(generateLegalMoves(game).map(moveKey))
+    let yieldCount = 0
+
+    const selectedMove = await selectAiMoveAsync(
+      {
+        game,
+        difficulty: 'hard',
+        seed: 7,
+      },
+      {
+        yieldAfterPositions: 1,
+        scheduler: async () => {
+          yieldCount += 1
+        },
+      },
+    )
+
+    expect(legalMoveKeys.has(moveKey(selectedMove))).toBe(true)
+    expect(yieldCount).toBeGreaterThan(0)
+  })
+
+  it('returns a legal move when async search yields during deeper analysis', async () => {
+    const game = createChessGame()
+    const diagnostics = createAiSearchDiagnostics()
+    const legalMoveKeys = new Set(generateLegalMoves(game).map(moveKey))
+    let yieldCount = 0
+
+    const searchedMove = await searchBestMoveAsync(
+      {
+        game,
+        difficulty: 'hard',
+        seed: 11,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        diagnostics,
+        yieldAfterPositions: 1,
+        scheduler: async () => {
+          yieldCount += 1
+        },
+      },
+    )
+
+    expect(legalMoveKeys.has(moveKey(searchedMove))).toBe(true)
+    expect(diagnostics.positionsEvaluated).toBeGreaterThan(0)
+    expect(yieldCount).toBeGreaterThan(0)
   })
 })
 

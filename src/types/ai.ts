@@ -30,6 +30,15 @@ export interface AiSearchOptions {
   maxPositions?: number
 }
 
+export interface AiAsyncOptions {
+  yieldAfterPositions?: number
+  scheduler?: () => Promise<void>
+}
+
+export interface AiAsyncSearchOptions
+  extends AiSearchOptions,
+    AiAsyncOptions {}
+
 export type AiPieceValues = Record<PieceType, number>
 
 export type AiMoveSelector = (

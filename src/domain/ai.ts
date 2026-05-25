@@ -1,6 +1,8 @@
 import { applyLegalMove, generateLegalMoves } from '../chess/engine'
 import { squareToCoordinates } from './chessboard'
 import type {
+  AiAsyncOptions,
+  AiAsyncSearchOptions,
   AiDifficulty,
   AiMoveRequest,
   AiMoveSelector,
@@ -50,10 +52,18 @@ interface SearchContext {
   budgetExhausted: boolean
 }
 
+interface AsyncSearchContext extends SearchContext {
+  yieldAfterPositions: number
+  scheduler: () => Promise<void>
+  positionsAtLastYield: number
+}
+
 interface RootSearchResult {
   scoredMoves: AiScoredMove[]
   completed: boolean
 }
+
+const DEFAULT_ASYNC_YIELD_AFTER_POSITIONS = 64
 
 export const AI_SEARCH_DEPTHS = {
   medium: 2,
@@ -90,6 +100,41 @@ export function selectAiMove(request: AiMoveRequest): LegalMove {
   const selectedMove = AI_MOVE_SELECTORS[request.difficulty](request, legalMoves)
 
   return ensureLegalMove(selectedMove, legalMoves)
+}
+
+export async function selectAiMoveAsync(
+  request: AiMoveRequest,
+  options: AiAsyncOptions = {},
+): Promise<LegalMove> {
+  const legalMoves = generateLegalMoves(request.game)
+
+  if (legalMoves.length === 0) {
+    throw new Error('AI cannot select a move from a terminal position')
+  }
+
+  switch (request.difficulty) {
+    case 'easy':
+      return ensureLegalMove(selectEasyMove(request, legalMoves), legalMoves)
+    case 'medium':
+      return ensureLegalMove(
+        await selectSearchMoveAsync(request, legalMoves, {
+          depth: AI_SEARCH_DEPTHS.medium,
+          maxPositions: request.maxPositions ?? AI_SEARCH_POSITION_BUDGETS.medium,
+          ...options,
+        }),
+        legalMoves,
+      )
+    case 'hard':
+      return ensureLegalMove(
+        await selectSearchMoveAsync(request, legalMoves, {
+          depth: AI_SEARCH_DEPTHS.hard,
+          alphaBetaPruning: true,
+          maxPositions: request.maxPositions ?? AI_SEARCH_POSITION_BUDGETS.hard,
+          ...options,
+        }),
+        legalMoves,
+      )
+  }
 }
 
 export function createAiSearchDiagnostics(): AiSearchDiagnostics {
@@ -171,6 +216,22 @@ export function searchBestMove(
   return ensureLegalMove(selectSearchMove(request, legalMoves, options), legalMoves)
 }
 
+export async function searchBestMoveAsync(
+  request: AiMoveRequest,
+  options: AiAsyncSearchOptions,
+): Promise<LegalMove> {
+  const legalMoves = generateLegalMoves(request.game)
+
+  if (legalMoves.length === 0) {
+    throw new Error('AI cannot select a move from a terminal position')
+  }
+
+  return ensureLegalMove(
+    await selectSearchMoveAsync(request, legalMoves, options),
+    legalMoves,
+  )
+}
+
 function selectEasyMove(
   request: AiMoveRequest,
   legalMoves: LegalMove[],
@@ -236,6 +297,42 @@ function selectSearchMove(
   return pickRandomMove(bestMoves, context.random)
 }
 
+async function selectSearchMoveAsync(
+  request: AiMoveRequest,
+  legalMoves: LegalMove[],
+  options: AiAsyncSearchOptions,
+): Promise<LegalMove> {
+  const context = createAsyncSearchContext(request, options)
+  const fallbackMoves = collectTopMoves(rankEasyMoves(legalMoves))
+  let bestMoves = fallbackMoves
+  let orderedMoves = orderMovesForSearch(legalMoves)
+
+  for (let depth = 1; depth <= Math.max(1, options.depth); depth += 1) {
+    const result = await searchRootAsync(request.game, orderedMoves, depth, context)
+
+    if (result.scoredMoves.length > 0) {
+      orderedMoves = result.scoredMoves
+        .slice()
+        .sort((left, right) => right.score - left.score)
+        .map((entry) => entry.move)
+    }
+
+    if (!result.completed) {
+      break
+    }
+
+    bestMoves = collectTopMoves(result.scoredMoves)
+
+    if (context.diagnostics !== undefined) {
+      context.diagnostics.completedDepth = depth
+    }
+
+    await maybeYield(context)
+  }
+
+  return pickRandomMove(bestMoves, context.random)
+}
+
 function searchRoot(
   game: ChessPositionSnapshot,
   legalMoves: LegalMove[],
@@ -269,6 +366,49 @@ function searchRoot(
     if (context.useAlphaBeta) {
       alpha = Math.max(alpha, bestScore)
     }
+  }
+
+  return {
+    scoredMoves,
+    completed: !context.budgetExhausted,
+  }
+}
+
+async function searchRootAsync(
+  game: ChessPositionSnapshot,
+  legalMoves: LegalMove[],
+  depth: number,
+  context: AsyncSearchContext,
+): Promise<RootSearchResult> {
+  const scoredMoves: AiScoredMove[] = []
+  let alpha = Number.NEGATIVE_INFINITY
+  const beta = Number.POSITIVE_INFINITY
+  let bestScore = Number.NEGATIVE_INFINITY
+
+  for (const move of legalMoves) {
+    if (context.budgetExhausted) {
+      return {
+        scoredMoves,
+        completed: false,
+      }
+    }
+
+    const score = await minimaxAsync(
+      applyMove(game, move),
+      depth - 1,
+      alpha,
+      beta,
+      context,
+    )
+
+    scoredMoves.push({ move, score })
+    bestScore = Math.max(bestScore, score)
+
+    if (context.useAlphaBeta) {
+      alpha = Math.max(alpha, bestScore)
+    }
+
+    await maybeYield(context)
   }
 
   return {
@@ -357,6 +497,118 @@ function minimax(
 
   for (const move of orderedMoves) {
     const score = minimax(
+      applyMove(game, move),
+      depth - 1,
+      alpha,
+      nextBeta,
+      context,
+    )
+    bestScore = Math.min(bestScore, score)
+
+    if (context.budgetExhausted) {
+      return bestScore
+    }
+
+    if (!context.useAlphaBeta) {
+      continue
+    }
+
+    nextBeta = Math.min(nextBeta, bestScore)
+
+    if (alpha >= nextBeta) {
+      if (context.diagnostics !== undefined) {
+        context.diagnostics.alphaBetaCutoffs += 1
+      }
+      break
+    }
+  }
+
+  writeCachedScore(game, depth, bestScore, context)
+  return bestScore
+}
+
+async function minimaxAsync(
+  game: ChessPositionSnapshot,
+  depth: number,
+  alpha: number,
+  beta: number,
+  context: AsyncSearchContext,
+): Promise<number> {
+  await maybeYield(context)
+
+  const cachedScore = readCachedScore(game, depth, context)
+
+  if (cachedScore !== undefined) {
+    return cachedScore
+  }
+
+  if (hasReachedSearchBudget(context)) {
+    return evaluateBoard(game, context.maximizingColor, depth)
+  }
+
+  context.positionsEvaluated += 1
+
+  if (context.diagnostics !== undefined) {
+    context.diagnostics.positionsEvaluated += 1
+  }
+
+  if (depth === 0 || game.status === 'checkmate' || game.status === 'stalemate') {
+    const terminalScore = evaluateBoard(game, context.maximizingColor, depth)
+    writeCachedScore(game, depth, terminalScore, context)
+    return terminalScore
+  }
+
+  const legalMoves = generateLegalMoves(game)
+
+  if (legalMoves.length === 0) {
+    const score = evaluateBoard(game, context.maximizingColor, depth)
+    writeCachedScore(game, depth, score, context)
+    return score
+  }
+
+  const orderedMoves = orderMovesForSearch(legalMoves)
+
+  if (game.turn === context.maximizingColor) {
+    let bestScore = Number.NEGATIVE_INFINITY
+    let nextAlpha = alpha
+
+    for (const move of orderedMoves) {
+      const score = await minimaxAsync(
+        applyMove(game, move),
+        depth - 1,
+        nextAlpha,
+        beta,
+        context,
+      )
+      bestScore = Math.max(bestScore, score)
+
+      if (context.budgetExhausted) {
+        return bestScore
+      }
+
+      if (!context.useAlphaBeta) {
+        continue
+      }
+
+      nextAlpha = Math.max(nextAlpha, bestScore)
+
+      if (nextAlpha >= beta) {
+        if (context.diagnostics !== undefined) {
+          context.diagnostics.alphaBetaCutoffs += 1
+        }
+        break
+      }
+    }
+
+    writeCachedScore(game, depth, bestScore, context)
+    return bestScore
+  }
+
+  let bestScore = Number.POSITIVE_INFINITY
+  let nextBeta = beta
+
+  for (const move of orderedMoves) {
+    const score = await minimaxAsync(
       applyMove(game, move),
       depth - 1,
       alpha,
@@ -588,6 +840,18 @@ function createSearchContext(
   }
 }
 
+function createAsyncSearchContext(
+  request: AiMoveRequest,
+  options: AiAsyncSearchOptions,
+): AsyncSearchContext {
+  return {
+    ...createSearchContext(request, options),
+    yieldAfterPositions: normalizeYieldAfterPositions(options.yieldAfterPositions),
+    scheduler: options.scheduler ?? defaultAsyncScheduler,
+    positionsAtLastYield: 0,
+  }
+}
+
 function resolveMaxPositions(
   request: AiMoveRequest,
   options: AiSearchOptions,
@@ -622,6 +886,14 @@ function normalizeMaxPositions(value?: number): number {
   return Math.max(0, Math.floor(value))
 }
 
+function normalizeYieldAfterPositions(value?: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return DEFAULT_ASYNC_YIELD_AFTER_POSITIONS
+  }
+
+  return Math.max(1, Math.floor(value))
+}
+
 function hasReachedSearchBudget(context: SearchContext): boolean {
   if (!Number.isFinite(context.maxPositions)) {
     return false
@@ -638,6 +910,19 @@ function hasReachedSearchBudget(context: SearchContext): boolean {
   }
 
   return true
+}
+
+async function maybeYield(context: AsyncSearchContext): Promise<void> {
+  if (
+    context.positionsEvaluated === context.positionsAtLastYield ||
+    context.positionsEvaluated - context.positionsAtLastYield <
+      context.yieldAfterPositions
+  ) {
+    return
+  }
+
+  context.positionsAtLastYield = context.positionsEvaluated
+  await context.scheduler()
 }
 
 function readCachedScore(
@@ -739,4 +1024,10 @@ function isBackRank(
   color: LegalMove['piece']['color'],
 ): boolean {
   return square[1] === (color === 'white' ? '1' : '8')
+}
+
+function defaultAsyncScheduler(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0)
+  })
 }
