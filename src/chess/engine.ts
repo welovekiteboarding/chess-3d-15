@@ -138,6 +138,16 @@ export function generateLegalMoves(
   return generateLegalMovesInternal(position, targetSquare, true)
 }
 
+export function generateSearchMoves(
+  game: ChessGameState,
+  square?: string,
+): LegalMove[] {
+  const position = toInternalPosition(game)
+  const targetSquare = square === undefined ? undefined : parseSquare(square)
+
+  return generateLegalMovesInternal(position, targetSquare, false)
+}
+
 export function makeMove(
   game: ChessGameState,
   input: MoveInput,
