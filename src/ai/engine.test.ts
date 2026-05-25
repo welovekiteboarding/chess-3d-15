@@ -6,7 +6,7 @@ import {
   scoreEasyMove,
   searchBestMove,
   selectAiMove,
-} from '../domain/ai'
+} from './engine'
 import { createChessGame, generateLegalMoves } from '../chess/engine'
 import type { AiDifficulty } from '../types/ai'
 import type {
@@ -45,6 +45,55 @@ describe('selectAiMove', () => {
       expect(legalMoveKeys.has(moveKey(selectedMove))).toBe(true)
     },
   )
+
+  it.each<AiDifficulty>(['easy', 'medium', 'hard'])(
+    'repeats the same move for %s mode when the seed is fixed',
+    (difficulty) => {
+      const game = createChessGame()
+      const firstSelection = selectAiMove({
+        game,
+        difficulty,
+        seed: 2_024,
+      })
+      const repeatedSelection = selectAiMove({
+        game,
+        difficulty,
+        seed: 2_024,
+      })
+
+      expect(moveKey(repeatedSelection)).toBe(moveKey(firstSelection))
+    },
+  )
+
+  it('uses a deterministic seed to break ties between equally scored moves', () => {
+    const game = createCustomGame(
+      [
+        { square: 'a1', color: 'white', type: 'knight' },
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+
+    const firstSelection = selectAiMove({
+      game,
+      difficulty: 'easy',
+      seed: 12_345,
+    })
+    const repeatedSelection = selectAiMove({
+      game,
+      difficulty: 'easy',
+      seed: 12_345,
+    })
+    const alternateSelection = selectAiMove({
+      game,
+      difficulty: 'easy',
+      seed: 98_765,
+    })
+
+    expect(moveKey(repeatedSelection)).toBe(moveKey(firstSelection))
+    expect(moveKey(alternateSelection)).not.toBe(moveKey(firstSelection))
+  })
 
   it('uses the easy heuristic to choose an obvious rook capture', () => {
     const game = createCustomGame(
@@ -123,6 +172,28 @@ describe('selectAiMove', () => {
     expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
     expect(diagnostics.positionsEvaluated).toBeGreaterThan(0)
     expect(diagnostics.alphaBetaCutoffs).toBeGreaterThan(0)
+  })
+
+  it('returns a legal move even when a search budget stops deeper analysis early', () => {
+    const game = createChessGame()
+    const diagnostics = createAiSearchDiagnostics()
+    const searchedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        seed: 11,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        maxPositions: 64,
+        diagnostics,
+      },
+    )
+
+    expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
+    expect(diagnostics.positionsEvaluated).toBeLessThanOrEqual(64)
+    expect(diagnostics.budgetExhausted).toBe(true)
   })
 })
 

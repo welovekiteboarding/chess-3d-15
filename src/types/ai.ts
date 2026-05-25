@@ -6,6 +6,8 @@ export interface AiMoveRequest {
   game: ChessGameState
   difficulty: AiDifficulty
   random?: () => number
+  seed?: number
+  maxPositions?: number
 }
 
 export interface AiScoredMove {
@@ -16,12 +18,16 @@ export interface AiScoredMove {
 export interface AiSearchDiagnostics {
   positionsEvaluated: number
   alphaBetaCutoffs: number
+  cacheHits: number
+  budgetExhausted: boolean
+  completedDepth: number
 }
 
 export interface AiSearchOptions {
   depth: number
   alphaBetaPruning?: boolean
   diagnostics?: AiSearchDiagnostics
+  maxPositions?: number
 }
 
 export type AiPieceValues = Record<PieceType, number>
