@@ -129,7 +129,7 @@ export function createChessGame(
 }
 
 export function generateLegalMoves(
-  game: ChessGameState,
+  game: ChessPositionSnapshot,
   square?: string,
 ): LegalMove[] {
   const position = toInternalPosition(game)
@@ -174,7 +174,7 @@ export function makeMove(
 }
 
 export function getPieceAtSquare(
-  game: ChessGameState,
+  game: ChessPositionSnapshot,
   square: string,
 ): ChessPiece | null {
   try {
@@ -185,8 +185,20 @@ export function getPieceAtSquare(
   }
 }
 
-export function isInCheck(game: ChessGameState, color: PieceColor): boolean {
+export function isInCheck(
+  game: ChessPositionSnapshot,
+  color: PieceColor,
+): boolean {
   return isKingInCheck(toInternalPosition(game), color)
+}
+
+export function simulateLegalMove(
+  game: ChessPositionSnapshot,
+  move: LegalMove,
+): ChessPositionSnapshot {
+  const nextPosition = applyMoveToPosition(toInternalPosition(game), move)
+
+  return createSnapshot(nextPosition)
 }
 
 export function replayGameHistory(

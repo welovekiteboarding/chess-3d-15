@@ -7,6 +7,7 @@ import {
   isInCheck,
   makeMove,
   replayGameHistory,
+  simulateLegalMove,
 } from './engine'
 import type {
   ChessGameOptions,
@@ -192,6 +193,31 @@ describe('generateLegalMoves', () => {
     expect(() => makeMove(game, { from: 'e2', to: 'e5' })).toThrow(
       /illegal move/i,
     )
+  })
+
+  it('simulates a known legal move without growing move history', () => {
+    const game = createChessGame()
+    const simulatedMove = generateLegalMoves(game, 'e2').find(
+      (move) => move.to === 'e4',
+    )
+
+    expect(simulatedMove).toBeDefined()
+
+    const simulatedPosition = simulateLegalMove(game, simulatedMove!)
+    const appliedGame = makeMove(game, { from: 'e2', to: 'e4' })
+
+    expect(game.history).toHaveLength(0)
+    expect(simulatedPosition).toEqual({
+      pieces: appliedGame.pieces,
+      turn: appliedGame.turn,
+      castlingRights: appliedGame.castlingRights,
+      enPassantTarget: appliedGame.enPassantTarget,
+      halfmoveClock: appliedGame.halfmoveClock,
+      fullmoveNumber: appliedGame.fullmoveNumber,
+      status: appliedGame.status,
+      checkedColor: appliedGame.checkedColor,
+      winner: appliedGame.winner,
+    })
   })
 
   it('rejects moves that would leave the moving side in check', () => {
