@@ -1,26 +1,26 @@
 import { Link } from 'react-router-dom'
-import { ChessViewportPlaceholder } from '../components/game/ChessViewportPlaceholder'
+import { ChessBoardStage } from '../components/board/ChessBoardStage'
 
 export function GameShellPage() {
   return (
     <section className="game-shell-page">
-      <ChessViewportPlaceholder />
+      <ChessBoardStage />
 
       <div className="status-grid">
         <article className="status-card">
-          <p className="eyebrow">Current route</p>
-          <h3>/game</h3>
+          <p className="eyebrow">Board mapping</p>
+          <h3>Scene coordinates ready</h3>
           <p>
-            Reserved for the playable board, camera, and move interaction
-            layers.
+            Square helpers convert chess notation into stable 3D positions for
+            future move animation, hit testing, and legal-move overlays.
           </p>
         </article>
         <article className="status-card">
-          <p className="eyebrow">Next graph tasks</p>
-          <h3>Engine, scene, interaction</h3>
+          <p className="eyebrow">Scene quality</p>
+          <h3>Lit, shadowed, responsive</h3>
           <p>
-            This scaffold separates the app shell from future chess rules and 3D
-            rendering modules.
+            The foundation now includes a pleasing default camera angle, orbit
+            controls, responsive sizing, and shadow-casting materials.
           </p>
         </article>
       </div>
