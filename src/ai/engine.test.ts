@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { scoreEasyMove, selectAiMove } from '../domain/ai'
+import {
+  AI_SEARCH_DEPTHS,
+  createAiSearchDiagnostics,
+  scoreEasyMove,
+  searchBestMove,
+  selectAiMove,
+} from '../domain/ai'
 import { createChessGame, generateLegalMoves } from '../chess/engine'
 import type { AiDifficulty } from '../types/ai'
 import type {
@@ -60,6 +66,63 @@ describe('selectAiMove', () => {
     expect(selectedMove.from).toBe('d4')
     expect(selectedMove.to).toBe('d7')
     expect(selectedMove.isCapture).toBe(true)
+  })
+
+  it('uses shallow search in medium mode to avoid a poisoned rook capture', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+        { square: 'e6', color: 'black', type: 'bishop' },
+      ],
+      { turn: 'white' },
+    )
+
+    const easyMove = selectAiMove({
+      game,
+      difficulty: 'easy',
+      random: () => 0,
+    })
+    const mediumMove = selectAiMove({
+      game,
+      difficulty: 'medium',
+      random: () => 0,
+    })
+
+    expect(moveKey(easyMove)).toBe('d4-d7-none')
+    expect(moveKey(mediumMove)).not.toBe('d4-d7-none')
+  })
+
+  it('uses a deeper alpha-beta search for hard mode', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+        { square: 'e6', color: 'black', type: 'bishop' },
+      ],
+      { turn: 'white' },
+    )
+    const diagnostics = createAiSearchDiagnostics()
+    const request = {
+      game,
+      difficulty: 'hard' as const,
+      random: () => 0,
+    }
+
+    const searchedMove = searchBestMove(request, {
+      depth: AI_SEARCH_DEPTHS.hard,
+      alphaBetaPruning: true,
+      diagnostics,
+    })
+
+    expect(AI_SEARCH_DEPTHS.hard).toBeGreaterThan(AI_SEARCH_DEPTHS.medium)
+    expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
+    expect(diagnostics.positionsEvaluated).toBeGreaterThan(0)
+    expect(diagnostics.alphaBetaCutoffs).toBeGreaterThan(0)
   })
 })
 
