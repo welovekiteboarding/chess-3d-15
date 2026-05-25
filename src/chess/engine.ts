@@ -48,6 +48,14 @@ interface BaseMove {
   rookTo: ChessSquare | null
 }
 
+export interface GenerateLegalMovesOptions {
+  includeOutcome?: boolean
+}
+
+export interface ApplyLegalMoveOptions {
+  recordHistory?: boolean
+}
+
 const BACK_RANK_ORDER: PieceType[] = [
   'rook',
   'knight',
@@ -129,13 +137,18 @@ export function createChessGame(
 }
 
 export function generateLegalMoves(
-  game: ChessGameState,
+  game: ChessPositionSnapshot | ChessGameState,
   square?: string,
+  options: GenerateLegalMovesOptions = {},
 ): LegalMove[] {
   const position = toInternalPosition(game)
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
-  return generateLegalMovesInternal(position, targetSquare, true)
+  return generateLegalMovesInternal(
+    position,
+    targetSquare,
+    options.includeOutcome ?? true,
+  )
 }
 
 export function makeMove(
@@ -144,22 +157,38 @@ export function makeMove(
 ): ChessGameState {
   const from = parseSquare(input.from)
   const to = parseSquare(input.to)
-  const legalMoves = generateLegalMoves(game, from)
+  const legalMoves = generateLegalMoves(game, from, { includeOutcome: true })
   const move = resolveRequestedMove(legalMoves, to, input.promotion)
 
   if (move === null) {
     throw new Error(`Illegal move: ${input.from} to ${input.to}`)
   }
 
+  return applyLegalMove(game, move)
+}
+
+export function applyLegalMove(
+  game: ChessPositionSnapshot | ChessGameState,
+  move: LegalMove,
+  options: ApplyLegalMoveOptions = {},
+): ChessGameState {
   const position = toInternalPosition(game)
   const nextPosition = applyMoveToPosition(position, move)
-  const before = stripHistory(game)
   const after = createSnapshot(nextPosition)
+
+  if (options.recordHistory === false || !hasMoveHistory(game)) {
+    return {
+      ...after,
+      history: [],
+    }
+  }
+
+  const before = stripHistory(game)
   const record: ChessMoveRecord = {
     index: game.history.length + 1,
     input: {
-      from,
-      to,
+      from: move.from,
+      to: move.to,
       ...(move.promotion === null ? {} : { promotion: move.promotion }),
     },
     move,
@@ -308,7 +337,13 @@ function toInternalPosition(position: ChessPositionSnapshot): InternalPosition {
   }
 }
 
-function stripHistory(game: ChessGameState): ChessPositionSnapshot {
+function hasMoveHistory(
+  game: ChessPositionSnapshot | ChessGameState,
+): game is ChessGameState {
+  return 'history' in game
+}
+
+function stripHistory(game: ChessPositionSnapshot | ChessGameState): ChessPositionSnapshot {
   return {
     pieces: game.pieces.map((piece) => ({ ...piece })),
     turn: game.turn,
