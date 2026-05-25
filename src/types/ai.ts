@@ -13,9 +13,12 @@ export interface AiScoredMove {
   score: number
 }
 
-export type AiPieceValues = Record<PieceType, number>
+export interface AiMoveAnalysis {
+  move: LegalMove
+  score: number
+  searchDepth: number
+  nodesVisited: number
+  prunedBranches: number
+}
 
-export type AiMoveSelector = (
-  request: AiMoveRequest,
-  legalMoves: LegalMove[],
-) => LegalMove
+export type AiPieceValues = Record<PieceType, number>
