@@ -1,0 +1,676 @@
+{
+  "tasks": [
+    {
+      "acceptance_criteria": [
+        "The app can be installed from a clean checkout with one package-manager command",
+        "The app can run locally in development mode",
+        "The app has a minimal landing/game shell route",
+        "The project includes lint, test, and build scripts",
+        "The README documents setup and local run commands"
+      ],
+      "dependencies": [],
+      "description": "Create the initial web app project for a browser-based 3D chess game. Use a modern frontend stack suitable for 3D rendering, typed code, and testability. Include a clean project structure, package scripts, linting, formatting, and a minimal home screen.",
+      "id": "chess-001",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "package.json",
+          "package-lock.json",
+          "README.md",
+          "index.html",
+          "vite.config.ts",
+          "tsconfig.json",
+          "tsconfig.app.json",
+          "tsconfig.node.json",
+          "eslint.config.js",
+          "prettier.config.js",
+          ".prettierrc",
+          "src",
+          "public"
+        ]
+      },
+      "status": "pending",
+      "title": "Create the 3D chess web app scaffold",
+      "validation": {
+        "commands": [
+          "npm install",
+          "npm run lint",
+          "npm run test -- --run",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "Board state can be initialized to the standard chess starting position",
+        "Legal moves are generated for all piece types",
+        "Illegal moves are rejected",
+        "Check, checkmate, and stalemate are detected",
+        "Castling, en passant, and promotion are supported",
+        "Move history can be replayed or inspected",
+        "The chess engine has unit tests for normal and edge-case rules"
+      ],
+      "dependencies": [
+        "chess-001"
+      ],
+      "description": "Implement the core chess domain model independent of UI rendering. Represent board state, pieces, turns, legal moves, captures, check, checkmate, stalemate, castling, en passant, promotion, and game history.",
+      "id": "chess-002",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/chess",
+          "src/domain",
+          "src/types"
+        ]
+      },
+      "status": "pending",
+      "title": "Define chess domain model and legal move engine",
+      "validation": {
+        "commands": [
+          "npm run test -- --run src/chess",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "A 3D chessboard renders in the browser",
+        "All chess pieces render in their correct starting positions",
+        "The scene uses lighting and shadows",
+        "The board is responsive to browser size",
+        "The camera has a pleasing default angle",
+        "The implementation exposes helpers for converting board squares to scene positions"
+      ],
+      "dependencies": [
+        "chess-001"
+      ],
+      "description": "Render a polished 3D chess board and pieces in the browser. Use realistic lighting, shadows, camera controls, smooth layout, and responsive sizing. The scene should support mapping chess squares to 3D coordinates.",
+      "id": "chess-003",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/scene",
+          "src/components/board",
+          "src/assets",
+          "src/styles",
+          "public"
+        ]
+      },
+      "status": "pending",
+      "title": "Build the 3D board and piece rendering foundation",
+      "validation": {
+        "commands": [
+          "npm run lint",
+          "npm run test -- --run",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The 3D board is rendered from chess engine state",
+        "Making a legal move updates the board",
+        "Captured pieces are removed from the board",
+        "Promotion changes the piece type",
+        "The UI displays whose turn it is",
+        "The UI displays check, checkmate, and stalemate states"
+      ],
+      "dependencies": [
+        "chess-002",
+        "chess-003"
+      ],
+      "description": "Connect the chess domain model to the 3D board. Pieces should render from game state, moves should update state, captured pieces should disappear, promotions should update piece identity, and the current player should be visible.",
+      "id": "chess-004",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/chess",
+          "src/domain",
+          "src/scene",
+          "src/components/board",
+          "src/components/game",
+          "src/state",
+          "src/types"
+        ]
+      },
+      "status": "pending",
+      "title": "Connect chess engine state to the 3D scene",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "Users can select pieces by clicking or tapping",
+        "Legal destinations are highlighted",
+        "Capture moves are visually distinct",
+        "Illegal moves are blocked and produce subtle feedback",
+        "Pieces animate smoothly from source square to destination square",
+        "Mouse and touch interactions both work"
+      ],
+      "dependencies": [
+        "chess-004"
+      ],
+      "description": "Allow users to select and move pieces using mouse or touch. Highlight selected pieces, legal destinations, captures, and invalid moves. Include smooth piece movement animations.",
+      "id": "chess-005",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/scene",
+          "src/components/board",
+          "src/components/game",
+          "src/input",
+          "src/state",
+          "src/styles"
+        ]
+      },
+      "status": "pending",
+      "title": "Implement mouse and touch interaction for moving pieces",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The AI can select a legal move from any valid non-terminal board state",
+        "Easy mode makes quick beginner-level moves",
+        "Medium mode uses board evaluation and shallow search",
+        "Hard mode uses deeper search with alpha-beta pruning",
+        "The AI never returns illegal moves",
+        "AI move selection does not freeze the UI for normal positions",
+        "AI behavior has unit tests for legality and deterministic seeded cases"
+      ],
+      "dependencies": [
+        "chess-002"
+      ],
+      "description": "Implement local AI for human-versus-AI play. Easy should make simple or partially random legal moves. Medium should use a basic evaluation function and shallow search. Hard should use deeper search, alpha-beta pruning, and a stronger evaluation function while staying responsive in the browser.",
+      "id": "chess-006",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/ai",
+          "src/chess",
+          "src/domain",
+          "src/workers",
+          "src/types"
+        ]
+      },
+      "status": "pending",
+      "title": "Create AI move engine with Easy, Medium, and Hard modes",
+      "validation": {
+        "commands": [
+          "npm run test -- --run src/ai src/chess",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The user can choose Human vs AI mode",
+        "The user can select Easy, Medium, or Hard difficulty",
+        "The AI makes a move after the human move completes",
+        "The UI indicates when the AI is thinking",
+        "The user cannot move while the AI is thinking",
+        "The game correctly handles human win, AI win, stalemate, and draw states"
+      ],
+      "dependencies": [
+        "chess-004",
+        "chess-005",
+        "chess-006"
+      ],
+      "description": "Add a game mode where the human plays against the AI. Include difficulty selection for Easy, Medium, and Hard. The AI should automatically move after the human completes a valid move.",
+      "id": "chess-007",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/ai",
+          "src/chess",
+          "src/components/game",
+          "src/components/controls",
+          "src/components/board",
+          "src/state",
+          "src/scene",
+          "src/workers"
+        ]
+      },
+      "status": "pending",
+      "title": "Add human-versus-AI game mode",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The user can request a hint during their turn",
+        "The hint shows the recommended source and destination squares",
+        "The hint move is always legal",
+        "The hint updates when the board state changes",
+        "The hint can be dismissed or replaced by the next move",
+        "Hint mode does not make the move automatically"
+      ],
+      "dependencies": [
+        "chess-006",
+        "chess-005"
+      ],
+      "description": "Add a hint feature that computes and displays the next recommended move for the current player. The hint should be visually clear but not disruptive. It should use the AI evaluation system and respect the current game state.",
+      "id": "chess-008",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/ai",
+          "src/chess",
+          "src/components/game",
+          "src/components/controls",
+          "src/components/board",
+          "src/scene",
+          "src/state"
+        ]
+      },
+      "status": "pending",
+      "title": "Add hint mode showing the next best move",
+      "validation": {
+        "commands": [
+          "npm run test -- --run src/ai src/chess",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The user can restart a game",
+        "The user can resign a game",
+        "The user can view move history in algebraic or readable notation",
+        "Captured pieces are displayed",
+        "Undo works in local play and handles AI turns consistently",
+        "Controls are disabled when unavailable"
+      ],
+      "dependencies": [
+        "chess-004",
+        "chess-007"
+      ],
+      "description": "Add complete game controls and supporting UI. Users should be able to restart the game, undo moves where allowed, resign, view move history, and see captured pieces.",
+      "id": "chess-009",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/chess",
+          "src/components/game",
+          "src/components/controls",
+          "src/components/history",
+          "src/components/board",
+          "src/state",
+          "src/styles"
+        ]
+      },
+      "status": "pending",
+      "title": "Add game controls, move history, undo, restart, and resign",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The app has a polished visual identity",
+        "The 3D board and surrounding UI feel cohesive",
+        "Animations are smooth and not distracting",
+        "Game state transitions are visually clear",
+        "The app looks good on desktop and tablet-sized screens",
+        "The app has a visually appealing game-over state",
+        "The app includes subtle sound or visual feedback if appropriate and configurable"
+      ],
+      "dependencies": [
+        "chess-005",
+        "chess-007",
+        "chess-008",
+        "chess-009"
+      ],
+      "description": "Polish the app into a beautiful production-feeling experience. Add premium visual styling, elegant typography, responsive layout, animations, empty states, loading states, game-over presentation, and a cohesive visual theme.",
+      "id": "chess-010",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/components",
+          "src/scene",
+          "src/styles",
+          "src/assets",
+          "public"
+        ]
+      },
+      "status": "pending",
+      "title": "Create beautiful visual design and fit-and-finish pass",
+      "validation": {
+        "commands": [
+          "npm run lint",
+          "npm run test -- --run",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "Interactive controls have accessible labels",
+        "Keyboard users can navigate game controls",
+        "Board selection has a keyboard-accessible path or fallback representation",
+        "Move highlights are not communicated by color alone",
+        "Reduced-motion preferences are respected",
+        "The app has no obvious accessibility violations in automated checks"
+      ],
+      "dependencies": [
+        "chess-005",
+        "chess-009",
+        "chess-010"
+      ],
+      "description": "Make the game usable with keyboard navigation and assistive technologies where practical for a 3D game. Provide accessible labels, focus states, reduced motion support, and non-color-only move indicators.",
+      "id": "chess-011",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/accessibility",
+          "src/components",
+          "src/scene",
+          "src/styles",
+          "src/input"
+        ]
+      },
+      "status": "pending",
+      "title": "Add accessibility and keyboard support",
+      "validation": {
+        "commands": [
+          "npm run lint",
+          "npm run test -- --run",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The current game is saved locally",
+        "Reloading the app restores the current game",
+        "The user can clear saved game state",
+        "Persistence handles schema version changes gracefully",
+        "Corrupt saved state does not crash the app"
+      ],
+      "dependencies": [
+        "chess-004",
+        "chess-009"
+      ],
+      "description": "Persist the current game locally so the user can close and reopen the browser without losing progress. Include safe reset behavior and versioned persistence format.",
+      "id": "chess-012",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/persistence",
+          "src/state",
+          "src/components/game",
+          "src/components/controls",
+          "src/chess"
+        ]
+      },
+      "status": "pending",
+      "title": "Add save/load and local game persistence",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "An end-to-end test confirms the app loads",
+        "An end-to-end test confirms a legal human move can be made",
+        "An end-to-end test confirms AI response behavior",
+        "An end-to-end test confirms hint mode displays a recommendation",
+        "An end-to-end test confirms restart behavior",
+        "The end-to-end tests run from a documented package script"
+      ],
+      "dependencies": [
+        "chess-007",
+        "chess-008",
+        "chess-009"
+      ],
+      "description": "Add browser-level smoke tests that verify the app loads, a human can move a piece, the AI can respond, hint mode displays a legal recommendation, and restart works.",
+      "id": "chess-013",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "tests",
+          "e2e",
+          "playwright.config.ts",
+          "package.json",
+          "package-lock.json",
+          "README.md"
+        ]
+      },
+      "status": "pending",
+      "title": "Add end-to-end smoke tests for core gameplay",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run e2e",
+          "npm run lint",
+          "npm run build"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "The app remains responsive during AI thinking",
+        "Hard mode avoids unacceptable UI freezing",
+        "3D rendering is smooth on typical laptop hardware",
+        "Assets are loaded efficiently",
+        "Unnecessary re-renders are reduced",
+        "Performance-sensitive code has comments or documentation explaining tradeoffs"
+      ],
+      "dependencies": [
+        "chess-006",
+        "chess-007",
+        "chess-010",
+        "chess-013"
+      ],
+      "description": "Profile and optimize rendering, asset loading, AI move calculation, and state updates. The app should feel smooth during interaction and avoid long main-thread stalls.",
+      "id": "chess-014",
+      "kind": "code",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "src/ai",
+          "src/scene",
+          "src/state",
+          "src/workers",
+          "src/components",
+          "src/assets",
+          "src/performance"
+        ]
+      },
+      "status": "pending",
+      "title": "Optimize performance for 3D rendering and AI responsiveness",
+      "validation": {
+        "commands": [
+          "npm run test -- --run",
+          "npm run lint",
+          "npm run build",
+          "npm run e2e"
+        ],
+        "required": true
+      }
+    },
+    {
+      "acceptance_criteria": [
+        "A new developer can install, run, test, and build the app from the README",
+        "Human versus AI works on Easy, Medium, and Hard",
+        "Hint mode shows a legal recommended move",
+        "The chess rules engine correctly handles major rules and terminal states",
+        "The UI is polished and responsive",
+        "All validation commands pass",
+        "Known limitations are documented"
+      ],
+      "dependencies": [
+        "chess-010",
+        "chess-011",
+        "chess-012",
+        "chess-013",
+        "chess-014"
+      ],
+      "description": "Perform a final acceptance pass across functionality, visual polish, tests, documentation, and local developer experience. Fix any defects found during acceptance.",
+      "id": "chess-015",
+      "kind": "validation",
+      "materialization": {
+        "linear_issue_id": null,
+        "linear_issue_identifier": null,
+        "materialized": false
+      },
+      "scope": {
+        "exclude": [],
+        "include": [
+          "README.md",
+          "docs",
+          "src",
+          "tests",
+          "e2e",
+          "package.json",
+          "package-lock.json",
+          "index.html",
+          "vite.config.ts",
+          "tsconfig.json",
+          "tsconfig.app.json",
+          "tsconfig.node.json",
+          "eslint.config.js",
+          "prettier.config.js",
+          ".prettierrc",
+          "playwright.config.ts",
+          "public"
+        ]
+      },
+      "status": "pending",
+      "title": "Create final product acceptance pass",
+      "validation": {
+        "commands": [
+          "npm install",
+          "npm run lint",
+          "npm run test -- --run",
+          "npm run e2e",
+          "npm run build"
+        ],
+        "required": true
+      }
+    }
+  ],
+  "version": 1
+}
