@@ -30,6 +30,11 @@ describe('app routes', () => {
     expect(
       screen.getByRole('heading', { name: /game shell/i }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/canvas mount point is ready/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/scene details/i)).toHaveTextContent(
+      /32\s*opening pieces/i,
+    )
+    expect(
+      screen.getByRole('img', { name: /interactive 3d chess board/i }),
+    ).toBeInTheDocument()
   })
 })
