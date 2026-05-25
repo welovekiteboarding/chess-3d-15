@@ -1,4 +1,4 @@
-import { generateLegalMoves, makeMove } from '../chess/engine'
+import { generateLegalMoves, simulateLegalMove } from '../chess/engine'
 import type {
   AiDifficulty,
   AiMoveRequest,
@@ -8,7 +8,12 @@ import type {
   AiSearchOptions,
   AiScoredMove,
 } from '../types/ai'
-import type { ChessGameState, ChessSquare, LegalMove, PieceColor } from '../types/chess'
+import type {
+  ChessPositionSnapshot,
+  ChessSquare,
+  LegalMove,
+  PieceColor,
+} from '../types/chess'
 
 const EASY_CAPTURE_WEIGHT = 100
 const EASY_CHECKMATE_BONUS = 100_000
@@ -29,6 +34,11 @@ export const AI_SEARCH_DEPTHS = {
   hard: 3,
 } as const
 
+export const AI_SEARCH_POSITION_BUDGETS = {
+  medium: 1_500,
+  hard: 12_000,
+} as const
+
 export const AI_PIECE_VALUES: AiPieceValues = {
   king: 0,
   queen: 9,
@@ -42,6 +52,19 @@ const AI_MOVE_SELECTORS: Record<AiDifficulty, AiMoveSelector> = {
   easy: selectEasyMove,
   medium: selectMediumMove,
   hard: selectHardMove,
+}
+
+interface SearchContext {
+  aborted: boolean
+  diagnostics?: AiSearchDiagnostics
+  positionBudget: number | null
+  positionsEvaluated: number
+  transpositionTable: Map<string, number>
+}
+
+interface SearchResult {
+  bestMoves: LegalMove[]
+  completed: boolean
 }
 
 export function selectAiMove(request: AiMoveRequest): LegalMove {
@@ -58,6 +81,9 @@ export function createAiSearchDiagnostics(): AiSearchDiagnostics {
   return {
     positionsEvaluated: 0,
     alphaBetaCutoffs: 0,
+    transpositionHits: 0,
+    completedDepth: 0,
+    searchAborted: false,
   }
 }
 
@@ -105,7 +131,10 @@ export function rankEasyMoves(legalMoves: LegalMove[]): AiScoredMove[] {
       move,
       score: scoreEasyMove(move),
     }))
-    .sort((left, right) => right.score - left.score)
+    .sort(
+      (left, right) =>
+        right.score - left.score || compareMoves(left.move, right.move),
+    )
 }
 
 export function searchBestMove(
@@ -140,6 +169,8 @@ function selectMediumMove(
 ): LegalMove {
   return selectSearchMove(request, legalMoves, {
     depth: AI_SEARCH_DEPTHS.medium,
+    alphaBetaPruning: true,
+    positionBudget: AI_SEARCH_POSITION_BUDGETS.medium,
   })
 }
 
@@ -150,6 +181,7 @@ function selectHardMove(
   return selectSearchMove(request, legalMoves, {
     depth: AI_SEARCH_DEPTHS.hard,
     alphaBetaPruning: true,
+    positionBudget: AI_SEARCH_POSITION_BUDGETS.hard,
   })
 }
 
@@ -161,22 +193,70 @@ function selectSearchMove(
   const random = request.random ?? Math.random
   const maximizingColor = request.game.turn
   const orderedMoves = orderMovesForSearch(legalMoves)
-  const bestMoves: LegalMove[] = []
+  const searchDepth = normalizeSearchDepth(options.depth)
   const useAlphaBeta = options.alphaBetaPruning ?? false
+  const context = createSearchContext(options)
+  let bestMoves = [orderedMoves[0]!]
+  let hasCompletedSearch = false
+
+  if (orderedMoves.length === 1) {
+    return bestMoves[0]!
+  }
+
+  for (let depth = 1; depth <= searchDepth; depth += 1) {
+    const result = searchRootMoves(
+      request.game,
+      orderedMoves,
+      depth,
+      maximizingColor,
+      useAlphaBeta,
+      context,
+    )
+
+    if (result.bestMoves.length > 0 && (result.completed || !hasCompletedSearch)) {
+      bestMoves = result.bestMoves
+    }
+
+    if (!result.completed) {
+      break
+    }
+
+    hasCompletedSearch = true
+
+    if (context.diagnostics !== undefined) {
+      context.diagnostics.completedDepth = depth
+    }
+  }
+
+  return pickRandomMove(bestMoves, random)
+}
+
+function searchRootMoves(
+  game: ChessPositionSnapshot,
+  orderedMoves: LegalMove[],
+  depth: number,
+  maximizingColor: PieceColor,
+  useAlphaBeta: boolean,
+  context: SearchContext,
+): SearchResult {
+  const bestMoves: LegalMove[] = []
   let bestScore = Number.NEGATIVE_INFINITY
   let alpha = Number.NEGATIVE_INFINITY
   const beta = Number.POSITIVE_INFINITY
 
   for (const move of orderedMoves) {
-    const nextGame = applyMove(request.game, move)
+    if (isSearchBudgetExhausted(context)) {
+      break
+    }
+
     const score = minimax(
-      nextGame,
-      options.depth - 1,
+      applyMove(game, move),
+      depth - 1,
       maximizingColor,
       useAlphaBeta,
       alpha,
       beta,
-      options.diagnostics,
+      context,
     )
 
     if (score > bestScore) {
@@ -190,32 +270,53 @@ function selectSearchMove(
     if (useAlphaBeta) {
       alpha = Math.max(alpha, bestScore)
     }
+
+    if (context.aborted) {
+      break
+    }
   }
 
-  return pickRandomMove(bestMoves, random)
+  return {
+    bestMoves: bestMoves.length > 0 ? bestMoves : [orderedMoves[0]!],
+    completed: !context.aborted,
+  }
 }
 
 function minimax(
-  game: ChessGameState,
+  game: ChessPositionSnapshot,
   depth: number,
   maximizingColor: PieceColor,
   useAlphaBeta: boolean,
   alpha: number,
   beta: number,
-  diagnostics?: AiSearchDiagnostics,
+  context: SearchContext,
 ): number {
-  if (diagnostics !== undefined) {
-    diagnostics.positionsEvaluated += 1
+  const cacheKey = createSearchCacheKey(game, maximizingColor, depth)
+  const cachedScore = context.transpositionTable.get(cacheKey)
+
+  if (cachedScore !== undefined) {
+    if (context.diagnostics !== undefined) {
+      context.diagnostics.transpositionHits += 1
+    }
+    return cachedScore
+  }
+
+  if (!recordPositionEvaluation(context)) {
+    return evaluateBoard(game, maximizingColor, depth)
   }
 
   if (depth === 0 || game.status === 'checkmate' || game.status === 'stalemate') {
-    return evaluateBoard(game, maximizingColor, depth)
+    const score = evaluateBoard(game, maximizingColor, depth)
+    context.transpositionTable.set(cacheKey, score)
+    return score
   }
 
   const legalMoves = generateLegalMoves(game)
 
   if (legalMoves.length === 0) {
-    return evaluateBoard(game, maximizingColor, depth)
+    const score = evaluateBoard(game, maximizingColor, depth)
+    context.transpositionTable.set(cacheKey, score)
+    return score
   }
 
   const orderedMoves = orderMovesForSearch(legalMoves)
@@ -224,6 +325,10 @@ function minimax(
     let bestScore = Number.NEGATIVE_INFINITY
 
     for (const move of orderedMoves) {
+      if (isSearchBudgetExhausted(context)) {
+        break
+      }
+
       const score = minimax(
         applyMove(game, move),
         depth - 1,
@@ -231,22 +336,37 @@ function minimax(
         useAlphaBeta,
         alpha,
         beta,
-        diagnostics,
+        context,
       )
       bestScore = Math.max(bestScore, score)
 
       if (!useAlphaBeta) {
+        if (context.aborted) {
+          break
+        }
         continue
       }
 
       alpha = Math.max(alpha, bestScore)
 
       if (alpha >= beta) {
-        if (diagnostics !== undefined) {
-          diagnostics.alphaBetaCutoffs += 1
+        if (context.diagnostics !== undefined) {
+          context.diagnostics.alphaBetaCutoffs += 1
         }
         break
       }
+
+      if (context.aborted) {
+        break
+      }
+    }
+
+    if (!Number.isFinite(bestScore)) {
+      return evaluateBoard(game, maximizingColor, depth)
+    }
+
+    if (!context.aborted) {
+      context.transpositionTable.set(cacheKey, bestScore)
     }
 
     return bestScore
@@ -255,6 +375,10 @@ function minimax(
   let bestScore = Number.POSITIVE_INFINITY
 
   for (const move of orderedMoves) {
+    if (isSearchBudgetExhausted(context)) {
+      break
+    }
+
     const score = minimax(
       applyMove(game, move),
       depth - 1,
@@ -262,29 +386,44 @@ function minimax(
       useAlphaBeta,
       alpha,
       beta,
-      diagnostics,
+      context,
     )
     bestScore = Math.min(bestScore, score)
 
     if (!useAlphaBeta) {
+      if (context.aborted) {
+        break
+      }
       continue
     }
 
     beta = Math.min(beta, bestScore)
 
     if (alpha >= beta) {
-      if (diagnostics !== undefined) {
-        diagnostics.alphaBetaCutoffs += 1
+      if (context.diagnostics !== undefined) {
+        context.diagnostics.alphaBetaCutoffs += 1
       }
       break
     }
+
+    if (context.aborted) {
+      break
+    }
+  }
+
+  if (!Number.isFinite(bestScore)) {
+    return evaluateBoard(game, maximizingColor, depth)
+  }
+
+  if (!context.aborted) {
+    context.transpositionTable.set(cacheKey, bestScore)
   }
 
   return bestScore
 }
 
 function evaluateBoard(
-  game: ChessGameState,
+  game: ChessPositionSnapshot,
   maximizingColor: PieceColor,
   depth: number,
 ): number {
@@ -338,15 +477,18 @@ function orderMovesForSearch(legalMoves: LegalMove[]): LegalMove[] {
   return rankEasyMoves(legalMoves).map((entry) => entry.move)
 }
 
-function applyMove(game: ChessGameState, move: LegalMove): ChessGameState {
-  return makeMove(game, {
-    from: move.from,
-    to: move.to,
-    ...(move.promotion === null ? {} : { promotion: move.promotion }),
-  })
+function applyMove(
+  game: ChessPositionSnapshot,
+  move: LegalMove,
+): ChessPositionSnapshot {
+  return simulateLegalMove(game, move)
 }
 
 function pickRandomMove(moves: LegalMove[], random: () => number): LegalMove {
+  if (moves.length === 0) {
+    throw new Error('AI cannot pick a move from an empty move list')
+  }
+
   const index = Math.min(
     moves.length - 1,
     Math.floor(normalizeRandomValue(random()) * moves.length),
@@ -369,6 +511,121 @@ function normalizeRandomValue(value: number): number {
   }
 
   return value
+}
+
+function compareMoves(left: LegalMove, right: LegalMove): number {
+  return moveSortKey(left).localeCompare(moveSortKey(right))
+}
+
+function moveSortKey(move: LegalMove): string {
+  return [
+    move.from,
+    move.to,
+    move.promotion ?? 'none',
+    move.isCastling ? 'castle' : 'move',
+    move.isEnPassant ? 'ep' : 'standard',
+  ].join(':')
+}
+
+function createSearchContext(options: AiSearchOptions): SearchContext {
+  resetSearchDiagnostics(options.diagnostics)
+
+  return {
+    aborted: false,
+    diagnostics: options.diagnostics,
+    positionBudget: normalizePositionBudget(options.positionBudget),
+    positionsEvaluated: 0,
+    transpositionTable: new Map<string, number>(),
+  }
+}
+
+function resetSearchDiagnostics(diagnostics?: AiSearchDiagnostics): void {
+  if (diagnostics === undefined) {
+    return
+  }
+
+  diagnostics.positionsEvaluated = 0
+  diagnostics.alphaBetaCutoffs = 0
+  diagnostics.transpositionHits = 0
+  diagnostics.completedDepth = 0
+  diagnostics.searchAborted = false
+}
+
+function normalizeSearchDepth(depth: number): number {
+  if (!Number.isFinite(depth) || depth <= 1) {
+    return 1
+  }
+
+  return Math.floor(depth)
+}
+
+function normalizePositionBudget(positionBudget?: number): number | null {
+  if (
+    positionBudget === undefined ||
+    !Number.isFinite(positionBudget) ||
+    positionBudget < 1
+  ) {
+    return null
+  }
+
+  return Math.floor(positionBudget)
+}
+
+function isSearchBudgetExhausted(context: SearchContext): boolean {
+  if (context.positionBudget === null) {
+    return false
+  }
+
+  if (context.positionsEvaluated < context.positionBudget) {
+    return false
+  }
+
+  context.aborted = true
+
+  if (context.diagnostics !== undefined) {
+    context.diagnostics.searchAborted = true
+  }
+
+  return true
+}
+
+function recordPositionEvaluation(context: SearchContext): boolean {
+  if (isSearchBudgetExhausted(context)) {
+    return false
+  }
+
+  context.positionsEvaluated += 1
+
+  if (context.diagnostics !== undefined) {
+    context.diagnostics.positionsEvaluated = context.positionsEvaluated
+  }
+
+  return true
+}
+
+function createSearchCacheKey(
+  game: ChessPositionSnapshot,
+  maximizingColor: PieceColor,
+  depth: number,
+): string {
+  const castlingRights = [
+    game.castlingRights.white.kingSide ? 'K' : '-',
+    game.castlingRights.white.queenSide ? 'Q' : '-',
+    game.castlingRights.black.kingSide ? 'k' : '-',
+    game.castlingRights.black.queenSide ? 'q' : '-',
+  ].join('')
+  const pieces = game.pieces
+    .map((piece) => `${piece.color}:${piece.type}:${piece.square}`)
+    .join('|')
+
+  return [
+    maximizingColor,
+    game.turn,
+    String(depth),
+    castlingRights,
+    game.enPassantTarget ?? '-',
+    pieces,
+  ].join('|')
 }
 
 function isDevelopingMinorPiece(move: LegalMove): boolean {

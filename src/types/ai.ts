@@ -16,11 +16,15 @@ export interface AiScoredMove {
 export interface AiSearchDiagnostics {
   positionsEvaluated: number
   alphaBetaCutoffs: number
+  transpositionHits: number
+  completedDepth: number
+  searchAborted: boolean
 }
 
 export interface AiSearchOptions {
   depth: number
   alphaBetaPruning?: boolean
+  positionBudget?: number
   diagnostics?: AiSearchDiagnostics
 }
 

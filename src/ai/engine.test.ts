@@ -30,6 +30,15 @@ function moveKey(move: LegalMove): string {
   return `${move.from}-${move.to}-${move.promotion ?? 'none'}`
 }
 
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0
+
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0
+    return state / 0x1_0000_0000
+  }
+}
+
 describe('selectAiMove', () => {
   it.each<AiDifficulty>(['easy', 'medium', 'hard'])(
     'returns a legal move for %s mode',
@@ -45,6 +54,30 @@ describe('selectAiMove', () => {
       expect(legalMoveKeys.has(moveKey(selectedMove))).toBe(true)
     },
   )
+
+  it('uses the provided random source to break ties deterministically', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'knight' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+
+    const firstMove = selectAiMove({
+      game,
+      difficulty: 'easy',
+      random: createSeededRandom(17),
+    })
+    const secondMove = selectAiMove({
+      game,
+      difficulty: 'easy',
+      random: createSeededRandom(17),
+    })
+
+    expect(moveKey(firstMove)).toBe(moveKey(secondMove))
+  })
 
   it('uses the easy heuristic to choose an obvious rook capture', () => {
     const game = createCustomGame(
@@ -123,6 +156,31 @@ describe('selectAiMove', () => {
     expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
     expect(diagnostics.positionsEvaluated).toBeGreaterThan(0)
     expect(diagnostics.alphaBetaCutoffs).toBeGreaterThan(0)
+  })
+
+  it('caps hard-search work on the starting position and still returns a legal move', () => {
+    const game = createChessGame()
+    const diagnostics = createAiSearchDiagnostics()
+    const legalMoveKeys = new Set(generateLegalMoves(game).map(moveKey))
+
+    const searchedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        diagnostics,
+        positionBudget: 64,
+      },
+    )
+
+    expect(legalMoveKeys.has(moveKey(searchedMove))).toBe(true)
+    expect(diagnostics.completedDepth).toBeGreaterThan(0)
+    expect(diagnostics.searchAborted).toBe(true)
+    expect(diagnostics.positionsEvaluated).toBeLessThanOrEqual(64)
   })
 })
 
