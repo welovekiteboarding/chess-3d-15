@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Chess 3D mark">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#132320" />
+      <stop offset="100%" stop-color="#090c10" />
+    </linearGradient>
+    <linearGradient id="piece" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0c676" />
+      <stop offset="100%" stop-color="#a6752f" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)" />
+  <path
+    d="M52 18h24l-5 12 10 11-8 9 10 16c8 12 9 29 2 42H43c-7-13-6-30 2-42l10-16-8-9 10-11-5-12Zm12 10-2 8h4l-2-8ZM52 93h24"
+    fill="none"
+    stroke="url(#piece)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="8"
+  />
+</svg>
