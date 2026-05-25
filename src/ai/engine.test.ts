@@ -6,7 +6,7 @@ import {
   scoreEasyMove,
   searchBestMove,
   selectAiMove,
-} from '../domain/ai'
+} from './engine'
 import { createChessGame, generateLegalMoves } from '../chess/engine'
 import type { AiDifficulty } from '../types/ai'
 import type {
@@ -45,6 +45,33 @@ describe('selectAiMove', () => {
       expect(legalMoveKeys.has(moveKey(selectedMove))).toBe(true)
     },
   )
+
+  it('uses the provided seed to deterministically break ties', () => {
+    const game = createChessGame()
+    const rankedMoves = generateLegalMoves(game)
+      .map((move) => ({
+        move,
+        score: scoreEasyMove(move),
+      }))
+      .sort((left, right) => right.score - left.score)
+    const highestScore = rankedMoves[0]!.score
+    const tiedBestMoves = rankedMoves.filter((entry) => entry.score === highestScore)
+
+    expect(tiedBestMoves.length).toBeGreaterThan(1)
+
+    const selectedMoveA = selectAiMove({
+      game,
+      difficulty: 'easy',
+      seed: 7,
+    })
+    const selectedMoveB = selectAiMove({
+      game,
+      difficulty: 'easy',
+      seed: 7,
+    })
+
+    expect(moveKey(selectedMoveA)).toBe(moveKey(selectedMoveB))
+  })
 
   it('uses the easy heuristic to choose an obvious rook capture', () => {
     const game = createCustomGame(
@@ -123,6 +150,28 @@ describe('selectAiMove', () => {
     expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
     expect(diagnostics.positionsEvaluated).toBeGreaterThan(0)
     expect(diagnostics.alphaBetaCutoffs).toBeGreaterThan(0)
+  })
+
+  it('returns a legal move even when a deeper search hits its position budget', () => {
+    const game = createChessGame()
+    const diagnostics = createAiSearchDiagnostics()
+    const selectedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        seed: 13,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        positionBudget: 1,
+        diagnostics,
+      },
+    )
+
+    expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(selectedMove))).toBe(true)
+    expect(diagnostics.aborted).toBe(true)
+    expect(diagnostics.completedDepth).toBeLessThan(AI_SEARCH_DEPTHS.hard)
   })
 })
 
