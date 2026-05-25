@@ -30,7 +30,7 @@ npm install
 
 2. Open the local URL printed by Vite.
 3. Visit `/` for the landing page.
-4. Visit `/game` for the minimal game shell route.
+4. Visit `/game` for the 3D board foundation scene.
 
 ## Validation commands
 
@@ -54,7 +54,9 @@ npm run build
 
 - `src/app` contains the router and app entry component.
 - `src/routes` contains the landing page and game shell route.
-- `src/components` contains reusable layout and scaffold UI pieces.
+- `src/components` contains reusable layout and board presentation components.
+- `src/assets` contains starting-position data and shared scene content inputs.
+- `src/scene` contains 3D board math, lighting, camera, and piece rendering.
 - `src/styles` contains the global application stylesheet.
 - `src/test` contains shared test setup.
 - `public` contains static assets served by Vite.
