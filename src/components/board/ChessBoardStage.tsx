@@ -1,25 +1,38 @@
-import { useMemo } from 'react'
-import { createChessGame } from '../../chess/engine'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  createChessSceneSnapshot,
+  createChessSceneBinding,
   describeChessSceneStatus,
 } from '../../domain/chessScene'
 import { ChessScene } from '../../scene/ChessScene'
 import { squareToScenePosition } from '../../scene/boardCoordinates'
-import type { ChessGameState } from '../../types/chess'
+import type { ChessGameState, ChessSceneBinding } from '../../types/chess'
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
 
 interface ChessBoardStageProps {
   initialGame?: ChessGameState
+  binding?: ChessSceneBinding
 }
 
-export function ChessBoardStage({ initialGame }: ChessBoardStageProps) {
-  const snapshot = useMemo(
-    () => createChessSceneSnapshot(initialGame ?? createChessGame()),
-    [initialGame],
+export function ChessBoardStage({
+  initialGame,
+  binding,
+}: ChessBoardStageProps) {
+  const sceneBinding = useMemo(
+    () => binding ?? createChessSceneBinding(initialGame),
+    [binding, initialGame],
   )
+  const [snapshot, setSnapshot] = useState(() => sceneBinding.getSnapshot())
+
+  useEffect(() => {
+    setSnapshot(sceneBinding.getSnapshot())
+
+    return sceneBinding.subscribe((nextSnapshot) => {
+      setSnapshot(nextSnapshot)
+    })
+  }, [sceneBinding])
+
   const { turnLabel, statusLabel, statusDetail } = useMemo(
     () => describeChessSceneStatus(snapshot),
     [snapshot],
@@ -48,7 +61,7 @@ export function ChessBoardStage({ initialGame }: ChessBoardStageProps) {
 
         <div className="board-stage__notes" role="list">
           <span className="board-chip" role="listitem">
-            Engine snapshot live
+            Engine binding live
           </span>
           <span className="board-chip" role="listitem">
             {`${snapshot.pieces.length} scene pieces`}
@@ -80,9 +93,9 @@ export function ChessBoardStage({ initialGame }: ChessBoardStageProps) {
         </dl>
 
         <p className="board-stage__callout">
-          The board view now reads directly from the chess engine snapshot, so
-          turn, check, checkmate, and stalemate states stay in sync with the
-          rendered 3D position.
+          The board view now subscribes to the chess engine binding, so turn,
+          check, checkmate, and stalemate states stay in sync with the rendered
+          3D position.
         </p>
       </aside>
     </section>
