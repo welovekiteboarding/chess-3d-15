@@ -73,6 +73,67 @@ describe('chessSquareSelectHandlers', () => {
     )
   })
 
+  it('ignores mouse click selection after a drag gesture crosses to another square', () => {
+    const onSquareSelect = vi.fn()
+    const sourceHandlers = createChessSquareSelectHandlers('e4', onSquareSelect)
+    const targetHandlers = createChessSquareSelectHandlers('f4', onSquareSelect)
+
+    sourceHandlers.onPointerDown({
+      clientX: 120,
+      clientY: 84,
+      nativeEvent: {
+        clientX: 120,
+        clientY: 84,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 100,
+    })
+    targetHandlers.onClick({
+      clientX: 138,
+      clientY: 84,
+      stopPropagation() {},
+      timeStamp: 130,
+    })
+
+    expect(onSquareSelect).not.toHaveBeenCalled()
+  })
+
+  it('keeps mouse click selection when the pointer stays within the click tolerance', () => {
+    const onSquareSelect = vi.fn()
+    const handlers = createChessSquareSelectHandlers('f4', onSquareSelect)
+
+    handlers.onPointerDown({
+      clientX: 220,
+      clientY: 144,
+      nativeEvent: {
+        clientX: 220,
+        clientY: 144,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 200,
+    })
+    handlers.onClick({
+      clientX: 223,
+      clientY: 147,
+      nativeEvent: {
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 224,
+    })
+
+    expect(onSquareSelect).toHaveBeenCalledWith(
+      'f4',
+      expect.objectContaining({
+        source: 'click',
+        pointerType: 'mouse',
+        timestampMs: 224,
+      }),
+    )
+  })
+
   it('keeps the click pointer type when the event surface exposes it', () => {
     const onSquareSelect = vi.fn()
     const handlers = createChessSquareSelectHandlers('b5', onSquareSelect)

@@ -4,10 +4,15 @@ import {
   type ChessSquareSelectInput,
 } from './chessInputDeduplication'
 
+const CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX = 6
+const CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS = 500
+
 interface ChessSquareSelectEvent {
   stopPropagation(): void
   preventDefault?(): void
   button?: number
+  clientX?: number
+  clientY?: number
   isPrimary?: boolean
   pointerType?: string
   timeStamp?: number
@@ -15,6 +20,8 @@ interface ChessSquareSelectEvent {
     | Event
     | {
         button?: number
+        clientX?: number
+        clientY?: number
         isPrimary?: boolean
         pointerType?: string
         timeStamp?: number
@@ -26,15 +33,37 @@ export interface ChessSquareSelectHandlerSet {
   onPointerDown(event: ChessSquareSelectEvent): void
 }
 
+interface ChessMousePointerDownSnapshot {
+  clientX: number
+  clientY: number
+  timestampMs: number
+}
+
+type ChessSquareSelectCallback = NonNullable<
+  Parameters<typeof createChessSquareSelectHandlers>[1]
+>
+
+const mousePointerDownSnapshots = new WeakMap<
+  ChessSquareSelectCallback,
+  ChessMousePointerDownSnapshot
+>()
+
 export function createChessSquareSelectHandlers(
   square: ChessSquare,
   onSquareSelect?: (square: ChessSquare, input?: ChessSquareSelectInput) => void,
 ): ChessSquareSelectHandlerSet {
   return {
     onClick(event) {
+      if (shouldIgnoreMouseClickAfterDrag(event, onSquareSelect)) {
+        event.preventDefault?.()
+        event.stopPropagation()
+        return
+      }
+
       dispatchChessSquareSelect(square, 'click', event, onSquareSelect)
     },
     onPointerDown(event) {
+      rememberMousePointerDown(event, onSquareSelect)
       dispatchChessSquareSelect(square, 'pointerdown', event, onSquareSelect)
     },
   }
@@ -98,7 +127,7 @@ function resolveChessSquareSelectTimestampMs(
 
 function resolveNumericEventField(
   event: ChessSquareSelectEvent,
-  field: 'button' | 'timeStamp',
+  field: 'button' | 'clientX' | 'clientY' | 'timeStamp',
 ): number | undefined {
   const value = resolveEventField(event, field)
 
@@ -116,7 +145,7 @@ function resolveBooleanEventField(
 
 function resolveEventField(
   event: ChessSquareSelectEvent,
-  field: 'button' | 'isPrimary' | 'timeStamp',
+  field: 'button' | 'clientX' | 'clientY' | 'isPrimary' | 'timeStamp',
 ): unknown {
   if (field in event) {
     const value = event[field]
@@ -133,4 +162,83 @@ function resolveEventField(
   }
 
   return (nativeEvent as Record<typeof field, unknown>)[field]
+}
+
+function rememberMousePointerDown(
+  event: ChessSquareSelectEvent,
+  onSquareSelect?: ChessSquareSelectCallback,
+) {
+  if (onSquareSelect === undefined) {
+    return
+  }
+
+  if (
+    !isPrimarySelectionEvent('pointerdown', event) ||
+    resolveChessSquareSelectPointerType(event) !== 'mouse'
+  ) {
+    mousePointerDownSnapshots.delete(onSquareSelect)
+    return
+  }
+
+  const coordinates = resolvePointerCoordinates(event)
+  const timestampMs = resolveChessSquareSelectTimestampMs(event)
+
+  if (coordinates === undefined || timestampMs === undefined) {
+    mousePointerDownSnapshots.delete(onSquareSelect)
+    return
+  }
+
+  mousePointerDownSnapshots.set(onSquareSelect, {
+    ...coordinates,
+    timestampMs,
+  })
+}
+
+function shouldIgnoreMouseClickAfterDrag(
+  event: ChessSquareSelectEvent,
+  onSquareSelect?: ChessSquareSelectCallback,
+): boolean {
+  if (onSquareSelect === undefined) {
+    return false
+  }
+
+  const previousPointerDown = mousePointerDownSnapshots.get(onSquareSelect)
+
+  mousePointerDownSnapshots.delete(onSquareSelect)
+
+  if (previousPointerDown === undefined) {
+    return false
+  }
+
+  const coordinates = resolvePointerCoordinates(event)
+  const timestampMs = resolveChessSquareSelectTimestampMs(event)
+
+  if (coordinates === undefined || timestampMs === undefined) {
+    return false
+  }
+
+  const elapsedMs = timestampMs - previousPointerDown.timestampMs
+
+  if (elapsedMs < 0 || elapsedMs > CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS) {
+    return false
+  }
+
+  const deltaX = coordinates.clientX - previousPointerDown.clientX
+  const deltaY = coordinates.clientY - previousPointerDown.clientY
+
+  return (
+    deltaX * deltaX + deltaY * deltaY >
+    CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX * CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX
+  )
+}
+
+function resolvePointerCoordinates(
+  event: ChessSquareSelectEvent,
+): { clientX: number; clientY: number } | undefined {
+  const clientX = resolveNumericEventField(event, 'clientX')
+  const clientY = resolveNumericEventField(event, 'clientY')
+
+  return clientX !== undefined && clientY !== undefined
+    ? { clientX, clientY }
+    : undefined
 }
