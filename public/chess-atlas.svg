@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Chess 3D atlas background">
+  <defs>
+    <linearGradient id="frame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f1cf87" stop-opacity=".7" />
+      <stop offset="100%" stop-color="#87b8b0" stop-opacity=".2" />
+    </linearGradient>
+    <linearGradient id="path" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f1cf87" stop-opacity=".36" />
+      <stop offset="100%" stop-color="#f1cf87" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <rect x="72" y="88" width="1056" height="624" rx="40" fill="none" stroke="url(#frame)" stroke-width="2" />
+  <rect x="122" y="138" width="956" height="524" rx="26" fill="none" stroke="#f7f0e0" stroke-opacity=".12" stroke-width="1.5" />
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M160 222h880" stroke="#f7f0e0" stroke-opacity=".1" stroke-width="1" />
+    <path d="M160 310h880" stroke="#f7f0e0" stroke-opacity=".08" stroke-width="1" />
+    <path d="M160 400h880" stroke="#f7f0e0" stroke-opacity=".1" stroke-width="1" />
+    <path d="M160 490h880" stroke="#f7f0e0" stroke-opacity=".08" stroke-width="1" />
+    <path d="M160 578h880" stroke="#f7f0e0" stroke-opacity=".1" stroke-width="1" />
+    <path d="M272 150v500" stroke="#f7f0e0" stroke-opacity=".08" stroke-width="1" />
+    <path d="M432 150v500" stroke="#f7f0e0" stroke-opacity=".08" stroke-width="1" />
+    <path d="M600 150v500" stroke="#f7f0e0" stroke-opacity=".12" stroke-width="1" />
+    <path d="M768 150v500" stroke="#f7f0e0" stroke-opacity=".08" stroke-width="1" />
+    <path d="M928 150v500" stroke="#f7f0e0" stroke-opacity=".08" stroke-width="1" />
+  </g>
+
+  <g fill="none" stroke="url(#path)" stroke-linecap="round" stroke-width="2.5">
+    <path d="M204 608c88-54 184-82 286-82 98 0 206 24 330 24 108 0 196-20 262-62" />
+    <path d="M244 242c80 30 144 48 210 48 70 0 132-16 198-48 74-36 144-54 250-54" />
+  </g>
+
+  <g fill="#f1cf87">
+    <circle cx="246" cy="242" r="6" fill-opacity=".42" />
+    <circle cx="600" cy="226" r="4" fill-opacity=".62" />
+    <circle cx="934" cy="488" r="5" fill-opacity=".45" />
+    <circle cx="850" cy="286" r="3" fill-opacity=".52" />
+    <circle cx="340" cy="538" r="3.5" fill-opacity=".48" />
+  </g>
+
+  <g fill="none" stroke="#f1cf87" stroke-opacity=".24">
+    <circle cx="600" cy="400" r="142" stroke-width="1.5" />
+    <circle cx="600" cy="400" r="236" stroke-width="1" />
+    <circle cx="600" cy="400" r="312" stroke-width="1" />
+  </g>
+</svg>

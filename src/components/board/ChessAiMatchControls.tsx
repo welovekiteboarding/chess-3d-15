@@ -29,9 +29,9 @@ export function ChessAiMatchControls({
   return (
     <section
       aria-labelledby="ai-match-controls-title"
-      className="board-stage__feedback"
+      className="board-stage__feedback board-stage__feedback--control"
     >
-      <p className="eyebrow">Graph task chess-007c</p>
+      <p className="eyebrow">Match setup</p>
       <p className="board-stage__feedback-title" id="ai-match-controls-title">
         Human vs AI
       </p>
@@ -39,8 +39,8 @@ export function ChessAiMatchControls({
       <p className="board-stage__feedback-detail">
         {description.statusDetail}
       </p>
-      <p className="board-stage__feedback-detail">
-        Graph task chess-007c keeps the board locked during AI turns and
+      <p className="board-stage__feedback-detail board-stage__feedback-detail--meta">
+        <code>chess-007c</code> keeps the board locked during AI turns and
         surfaces win, stalemate, and draw outcomes from engine state.
       </p>
 

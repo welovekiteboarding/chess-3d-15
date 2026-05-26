@@ -43,6 +43,7 @@ import {
 } from '../../state/chessInteraction'
 import { ChessAiMatchControls } from './ChessAiMatchControls'
 import { ChessGameControls } from './ChessGameControls'
+import './boardStageFoundation.css'
 import type {
   ChessGameState,
   ChessSceneBinding,
@@ -290,6 +291,14 @@ export function ChessBoardStage({
     snapshot.lastMove === null
       ? 'Opening position'
       : `Last move: ${lastMoveLabel}`
+  const viewportPlaqueLabel =
+    snapshot.lastMove === null ? 'Opening tableau' : lastMoveLabel
+  const selectionBriefLabel =
+    interactionFeedbackTone === 'invalid'
+      ? 'Active alert'
+      : interactionSnapshot.selectedSquare === null
+        ? 'Awaiting selection'
+        : `Focused on ${interactionSnapshot.selectedSquare}`
   const aiMatchDescription = useMemo(
     () =>
       describeChessAiMatchSettings(resolvedAiMatchSettings, {
@@ -422,6 +431,16 @@ export function ChessBoardStage({
         }`}
       >
         <div className="board-stage__glow" />
+        <div className="board-stage__viewport-overlay">
+          <div className="board-stage__viewport-plaque">
+            <p className="board-stage__viewport-label">Sculpted board</p>
+            <p className="board-stage__viewport-value">{viewportPlaqueLabel}</p>
+          </div>
+          <div className="board-stage__viewport-plaque board-stage__viewport-plaque--compact">
+            <span>{`${snapshot.pieces.length} scene pieces`}</span>
+            <span>{`${DEMO_SQUARE} guide anchor`}</span>
+          </div>
+        </div>
         <ChessScene
           animatedPieces={animatedPieces}
           highlightedSquares={sceneHighlights}
@@ -436,81 +455,120 @@ export function ChessBoardStage({
         aria-live="polite"
         className="board-stage__rail"
       >
-        <div>
+        <section className="board-stage__hero-panel">
           <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
           <h2 id="board-stage-title">{turnLabel}</h2>
           <p className="body-copy">{statusDetail}</p>
-        </div>
 
-        <div
-          aria-label="Board status"
-          className="board-stage__notes"
-          role="list"
-        >
-          <span className="board-chip" role="listitem">
-            {statusLabel}
-          </span>
-          {isAiThinking ? (
+          <div
+            aria-label="Board status"
+            className="board-stage__notes"
+            role="list"
+          >
             <span className="board-chip" role="listitem">
-              AI thinking
+              {statusLabel}
             </span>
-          ) : null}
-          <span className="board-chip" role="listitem">
-            {`${snapshot.pieces.length} scene pieces`}
-          </span>
-          <span className="board-chip" role="listitem">
-            {moveChipLabel}
-          </span>
-        </div>
+            {isAiThinking ? (
+              <span className="board-chip" role="listitem">
+                AI thinking
+              </span>
+            ) : null}
+            <span className="board-chip" role="listitem">
+              {`${snapshot.pieces.length} scene pieces`}
+            </span>
+            <span className="board-chip" role="listitem">
+              {moveChipLabel}
+            </span>
+          </div>
+        </section>
 
-        <dl className="board-stage__meta">
-          <div className="board-stage__fact">
-            <dt>Graph task</dt>
-            <dd>
-              <code>{GRAPH_TASK_ID}</code>
-            </dd>
+        <section
+          aria-labelledby="board-brief-title"
+          className="board-stage__surface"
+        >
+          <div className="board-stage__surface-header">
+            <h3 className="board-stage__surface-title" id="board-brief-title">
+              Board brief
+            </h3>
+            <p className="board-stage__surface-caption">
+              Live pressure and move context around the active scene.
+            </p>
           </div>
-          <div className="board-stage__fact">
-            <dt>Status</dt>
-            <dd>{statusLabel}</dd>
+          <div className="board-stage__brief-grid">
+            <article className="board-stage__brief-card">
+              <p className="board-stage__brief-label">Status</p>
+              <p className="board-stage__brief-value">{statusLabel}</p>
+            </article>
+            <article className="board-stage__brief-card">
+              <p className="board-stage__brief-label">Last move</p>
+              <p className="board-stage__brief-value">{lastMoveLabel}</p>
+            </article>
+            <article className="board-stage__brief-card">
+              <p className="board-stage__brief-label">Selection</p>
+              <p className="board-stage__brief-value">{selectionBriefLabel}</p>
+            </article>
           </div>
-          <div className="board-stage__fact">
-            <dt>Match mode</dt>
-            <dd>{aiMatchDescription.modeLabel}</dd>
+          <div
+            className={`board-stage__feedback board-stage__feedback--tactical${
+              interactionFeedbackTone === 'invalid'
+                ? ' board-stage__feedback--invalid'
+                : ''
+            }`}
+          >
+            <p className="board-stage__feedback-title">
+              {interactionFeedback.title}
+            </p>
+            <p className="board-stage__feedback-detail">
+              {interactionFeedback.detail}
+            </p>
           </div>
-          <div className="board-stage__fact">
-            <dt>AI difficulty</dt>
-            <dd>{aiMatchDescription.difficultyLabel}</dd>
-          </div>
-          <div className="board-stage__fact">
-            <dt>Scene binding</dt>
-            <dd>{`${snapshot.pieces.length} pieces rendered from engine state`}</dd>
-          </div>
-          <div className="board-stage__fact">
-            <dt>Last move</dt>
-            <dd>{lastMoveLabel}</dd>
-          </div>
-          <div className="board-stage__fact">
-            <dt>Input surface</dt>
-            <dd>
-              <code>src/input</code>
-            </dd>
-          </div>
-          <div className="board-stage__fact">
-            <dt>Layout helper</dt>
-            <dd>
-              <code>{`${DEMO_SQUARE} -> [${demoPosition.join(', ')}]`}</code>
-            </dd>
-          </div>
-        </dl>
+        </section>
 
-        <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> extends the shared live scene
-          binding with AI-aware undo behavior, disabled control states,
-          readable move history, and captured-piece tracking while preserving
-          the existing restart, resignation, AI-turn, and board interaction
-          seams.
-        </p>
+        <section
+          aria-labelledby="play-profile-title"
+          className="board-stage__surface"
+        >
+          <div className="board-stage__surface-header">
+            <h3 className="board-stage__surface-title" id="play-profile-title">
+              Play profile
+            </h3>
+            <p className="board-stage__surface-caption">
+              Match mode, AI posture, and shared layout seams.
+            </p>
+          </div>
+          <dl className="board-stage__meta">
+            <div className="board-stage__fact">
+              <dt>Graph task</dt>
+              <dd>
+                <code>{GRAPH_TASK_ID}</code>
+              </dd>
+            </div>
+            <div className="board-stage__fact">
+              <dt>Match mode</dt>
+              <dd>{aiMatchDescription.modeLabel}</dd>
+            </div>
+            <div className="board-stage__fact">
+              <dt>AI difficulty</dt>
+              <dd>{aiMatchDescription.difficultyLabel}</dd>
+            </div>
+            <div className="board-stage__fact">
+              <dt>Scene binding</dt>
+              <dd>{`${snapshot.pieces.length} pieces rendered from engine state`}</dd>
+            </div>
+            <div className="board-stage__fact">
+              <dt>Input surface</dt>
+              <dd>
+                <code>src/input</code>
+              </dd>
+            </div>
+            <div className="board-stage__fact">
+              <dt>Layout helper</dt>
+              <dd>
+                <code>{`${DEMO_SQUARE} -> [${demoPosition.join(', ')}]`}</code>
+              </dd>
+            </div>
+          </dl>
+        </section>
 
         <ChessAiMatchControls
           game={currentGame}
@@ -526,18 +584,28 @@ export function ChessBoardStage({
           onResign={handleResign}
         />
 
-        <div
-          className={`board-stage__feedback${
-            interactionFeedbackTone === 'invalid'
-              ? ' board-stage__feedback--invalid'
-              : ''
-          }`}
+        <section
+          aria-labelledby="build-notes-title"
+          className="board-stage__surface board-stage__surface--notes"
         >
-          <p className="board-stage__feedback-title">{interactionFeedback.title}</p>
-          <p className="board-stage__feedback-detail">
-            {interactionFeedback.detail}
+          <div className="board-stage__surface-header">
+            <h3 className="board-stage__surface-title" id="build-notes-title">
+              Build notes
+            </h3>
+            <p className="board-stage__surface-caption">
+              Foundation pass for the premium board presentation layer.
+            </p>
+          </div>
+          <p className="board-stage__callout">
+            Graph task <code>{GRAPH_TASK_ID}</code> extends the shared live
+            scene binding with AI-aware undo behavior, disabled control states,
+            readable move history, and captured-piece tracking while preserving
+            the restart, resignation, AI-turn, and board interaction seams.
           </p>
-        </div>
+          <p className="board-stage__build-stamp">
+            {`Build ${LINEAR_ISSUE_ID} · Graph task ${GRAPH_TASK_ID}`}
+          </p>
+        </section>
 
         {controls}
       </aside>

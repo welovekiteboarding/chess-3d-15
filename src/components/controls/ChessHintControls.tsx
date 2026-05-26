@@ -59,7 +59,7 @@ export function ChessHintControls({ binding }: ChessHintControlsProps) {
   return (
     <section
       aria-labelledby="hint-controls-title"
-      className="board-stage__feedback"
+      className="board-stage__feedback board-stage__feedback--control"
     >
       <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
       <p className="board-stage__feedback-title" id="hint-controls-title">
@@ -70,6 +70,7 @@ export function ChessHintControls({ binding }: ChessHintControlsProps) {
         {`Graph task ${GRAPH_TASK_ID} wires the reusable hint controls into the live game shell.`}
       </p>
       <button
+        className="board-stage__action-button board-stage__action-button--single"
         disabled={!canRequestHint}
         onClick={handleHintToggle}
         type="button"
