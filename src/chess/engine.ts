@@ -173,6 +173,18 @@ export function makeMove(
   }
 }
 
+export function applyLegalMove(
+  game: ChessPositionSnapshot,
+  move: LegalMove,
+): ChessGameState {
+  const nextPosition = applyMoveToPosition(toInternalPosition(game), move)
+
+  return {
+    ...createSnapshot(nextPosition),
+    history: [],
+  }
+}
+
 export function getPieceAtSquare(
   game: ChessGameState,
   square: string,

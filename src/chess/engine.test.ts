@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyLegalMove,
   createChessGame,
   generateLegalMoves,
   getPieceAtSquare,
@@ -375,5 +376,30 @@ describe('history', () => {
         (piece) => piece.square === 'f3' && piece.type === 'knight',
       ),
     ).toBeDefined()
+  })
+})
+
+describe('applyLegalMove', () => {
+  it('projects the same next position as makeMove without recording history', () => {
+    const game = playMoves(createChessGame(), [
+      { from: 'e2', to: 'e4' },
+      { from: 'e7', to: 'e5' },
+    ])
+    const legalMove = generateLegalMoves(game, 'g1').find(
+      (move) => move.to === 'f3',
+    )
+
+    expect(legalMove).toBeDefined()
+
+    const projected = applyLegalMove(game, legalMove!)
+    const recorded = makeMove(game, {
+      from: 'g1',
+      to: 'f3',
+    })
+
+    expect(projected).toEqual({
+      ...recorded,
+      history: [],
+    })
   })
 })

@@ -1,4 +1,4 @@
-import { generateLegalMoves, makeMove } from '../chess/engine'
+import { applyLegalMove, generateLegalMoves } from '../chess/engine'
 import type {
   AiDifficulty,
   AiMoveRequest,
@@ -386,11 +386,7 @@ function compareScoredMoves(left: AiScoredMove, right: AiScoredMove): number {
 }
 
 function applyMove(game: ChessGameState, move: LegalMove): ChessGameState {
-  return makeMove(game, {
-    from: move.from,
-    to: move.to,
-    ...(move.promotion === null ? {} : { promotion: move.promotion }),
-  })
+  return applyLegalMove(game, move)
 }
 
 function pickRandomMove(moves: LegalMove[], random: () => number): LegalMove {
