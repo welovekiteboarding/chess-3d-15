@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createChessGame } from '../chess/engine'
+import { createChessGame, makeMove } from '../chess/engine'
 import {
   createChessSceneBinding,
   createChessSceneSnapshot,
+  describeChessSceneStatus,
 } from './chessScene'
+import type { ChessGameState, MoveInput } from '../types/chess'
+
+function playMoves(game: ChessGameState, moves: MoveInput[]): ChessGameState {
+  return moves.reduce((state, move) => makeMove(state, move), game)
+}
 
 describe('createChessSceneSnapshot', () => {
   it('derives renderable scene pieces from chess engine state', () => {
@@ -146,5 +152,66 @@ describe('createChessSceneBinding', () => {
     expect(() => binding.move({ from: 'e2', to: 'e5' })).toThrow(/illegal move/i)
     expect(updateListener).not.toHaveBeenCalled()
     expect(binding.getGame().history).toHaveLength(0)
+  })
+})
+
+describe('describeChessSceneStatus', () => {
+  it('describes active and check positions for UI consumers', () => {
+    const activeGame = createChessGame()
+    const checkedGame = createChessGame(
+      {
+        pieces: [
+          { square: 'e1', color: 'white', type: 'king' },
+          { square: 'e8', color: 'black', type: 'king' },
+          { square: 'e4', color: 'white', type: 'rook' },
+        ],
+        turn: 'black',
+      },
+    )
+
+    expect(describeChessSceneStatus(createChessSceneSnapshot(activeGame))).toEqual({
+      turnLabel: 'White to move',
+      statusLabel: 'Game in progress',
+      statusDetail: 'White controls the next move.',
+    })
+    expect(
+      describeChessSceneStatus(createChessSceneSnapshot(checkedGame)),
+    ).toEqual({
+      turnLabel: 'Black to move',
+      statusLabel: 'Black is in check',
+      statusDetail: 'Black must answer the threat on this turn.',
+    })
+  })
+
+  it('describes checkmate and stalemate positions for UI consumers', () => {
+    const checkmateGame = playMoves(createChessGame(), [
+      { from: 'f2', to: 'f3' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g2', to: 'g4' },
+      { from: 'd8', to: 'h4' },
+    ])
+    const stalemateGame = createChessGame({
+      pieces: [
+        { square: 'f7', color: 'white', type: 'king' },
+        { square: 'g6', color: 'white', type: 'queen' },
+        { square: 'h8', color: 'black', type: 'king' },
+      ],
+      turn: 'black',
+    })
+
+    expect(
+      describeChessSceneStatus(createChessSceneSnapshot(checkmateGame)),
+    ).toEqual({
+      turnLabel: 'White to move',
+      statusLabel: 'Checkmate',
+      statusDetail: 'Black wins. White has no legal move to escape check.',
+    })
+    expect(
+      describeChessSceneStatus(createChessSceneSnapshot(stalemateGame)),
+    ).toEqual({
+      turnLabel: 'Black to move',
+      statusLabel: 'Stalemate',
+      statusDetail: 'Black has no legal moves, and neither king is in check.',
+    })
   })
 })

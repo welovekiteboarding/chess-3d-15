@@ -4,6 +4,7 @@ import { OrbitControls as ThreeOrbitControls } from 'three/examples/jsm/controls
 import { PCFSoftShadowMap } from 'three'
 import { ChessBoardModel } from './ChessBoardModel'
 import { ChessPieceRack } from './ChessPieceModel'
+import type { ChessScenePiece } from '../types/chess'
 
 function CameraControls() {
   const { camera, gl } = useThree()
@@ -75,7 +76,11 @@ function ChessLights() {
   )
 }
 
-export function ChessScene() {
+interface ChessSceneProps {
+  pieces: ReadonlyArray<ChessScenePiece>
+}
+
+export function ChessScene({ pieces }: ChessSceneProps) {
   return (
     <Canvas
       camera={{ fov: 34, near: 0.1, far: 40, position: [7.4, 7.8, 8.6] }}
@@ -91,7 +96,7 @@ export function ChessScene() {
       <ChessLights />
       <CameraControls />
       <ChessBoardModel />
-      <ChessPieceRack />
+      <ChessPieceRack pieces={pieces} />
     </Canvas>
   )
 }
