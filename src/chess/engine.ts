@@ -252,6 +252,12 @@ export function createSearchPosition(
   return toInternalPosition(game)
 }
 
+export function resolveChessPositionSnapshot(
+  game: ChessPositionState,
+): ChessPositionSnapshot {
+  return createSnapshot(toInternalPosition(game))
+}
+
 export function createChessPositionKey(game: ChessPositionState): string {
   const position = toInternalPosition(game)
   const castlingRightsKey = createCastlingRightsKey(position.castlingRights)

@@ -284,9 +284,10 @@ export function ChessBoardStage({
   const aiMatchDescription = useMemo(
     () =>
       describeChessAiMatchSettings(resolvedAiMatchSettings, {
+        game: currentGame,
         isThinking: isAiThinking,
       }),
-    [isAiThinking, resolvedAiMatchSettings],
+    [currentGame, isAiThinking, resolvedAiMatchSettings],
   )
 
   function handleAiMatchSettingsChange(nextSettings: ChessAiMatchSettings) {
@@ -462,6 +463,7 @@ export function ChessBoardStage({
         </p>
 
         <ChessAiMatchControls
+          game={currentGame}
           isThinking={isAiThinking}
           onChange={handleAiMatchSettingsChange}
           value={resolvedAiMatchSettings}

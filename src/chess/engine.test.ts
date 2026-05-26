@@ -5,6 +5,7 @@ import {
   applyLegalMoveState,
   applySearchMove,
   createChessPositionKey,
+  resolveChessPositionSnapshot,
   createSearchPosition,
   createChessGame,
   generateLegalMoves,
@@ -341,6 +342,42 @@ describe('checks and terminal states', () => {
 
     expect(hasLegalMoves(staleDrawGame)).toBe(true)
     expect(hasLegalMoves(staleActiveCheckmate)).toBe(false)
+  })
+
+  it('recomputes terminal status from the board state when position metadata is stale', () => {
+    const playableAiTurn = makeMove(createChessGame(), {
+      from: 'e2',
+      to: 'e4',
+    })
+    const staleDrawGame: ChessGameState = {
+      ...playableAiTurn,
+      status: 'draw',
+      checkedColor: 'black',
+      winner: null,
+    }
+    const checkmateGame = playMoves(createChessGame(), [
+      { from: 'f2', to: 'f3' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g2', to: 'g4' },
+      { from: 'd8', to: 'h4' },
+    ])
+    const staleActiveCheckmate: ChessGameState = {
+      ...checkmateGame,
+      status: 'active',
+      checkedColor: null,
+      winner: null,
+    }
+
+    expect(resolveChessPositionSnapshot(staleDrawGame)).toMatchObject({
+      status: 'active',
+      checkedColor: null,
+      winner: null,
+    })
+    expect(resolveChessPositionSnapshot(staleActiveCheckmate)).toMatchObject({
+      status: 'checkmate',
+      checkedColor: 'white',
+      winner: 'black',
+    })
   })
 })
 

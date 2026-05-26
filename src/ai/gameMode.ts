@@ -1,4 +1,7 @@
+import { resolveChessPositionSnapshot } from '../chess/engine'
+import { describeChessSceneStatus } from '../domain/chessScene'
 import type { AiDifficulty } from '../types/ai'
+import type { ChessPositionState, PieceColor } from '../types/chess'
 
 export type ChessGameMode = 'human-vs-human' | 'human-vs-ai'
 
@@ -16,6 +19,8 @@ export interface ChessAiMatchSettingsDescription {
 
 export interface DescribeChessAiMatchSettingsOptions {
   isThinking?: boolean
+  game?: ChessPositionState
+  aiColor?: PieceColor
 }
 
 export const CHESS_GAME_MODE_OPTIONS: readonly ChessGameMode[] = [
@@ -44,6 +49,7 @@ const CHESS_AI_DIFFICULTY_LABELS: Record<AiDifficulty, string> = {
   medium: 'Medium',
   hard: 'Hard',
 }
+const DEFAULT_CHESS_AI_COLOR: PieceColor = 'black'
 
 export function createChessAiMatchSettings(
   overrides: Partial<ChessAiMatchSettings> = {},
@@ -94,6 +100,17 @@ export function describeChessAiMatchSettings(
   const difficultyLabel = CHESS_AI_DIFFICULTY_LABELS[settings.difficulty]
 
   if (isHumanVsAiMode(settings)) {
+    const terminalDescription = describeChessAiTerminalState(
+      modeLabel,
+      difficultyLabel,
+      options.game,
+      options.aiColor ?? DEFAULT_CHESS_AI_COLOR,
+    )
+
+    if (terminalDescription !== null) {
+      return terminalDescription
+    }
+
     if (options.isThinking) {
       return {
         modeLabel,
@@ -116,5 +133,40 @@ export function describeChessAiMatchSettings(
     difficultyLabel,
     statusLabel: 'Local human play',
     statusDetail: `AI opponent is off. ${difficultyLabel} difficulty stays selected so you can switch into Human vs AI without reconfiguring it.`,
+  }
+}
+
+function describeChessAiTerminalState(
+  modeLabel: string,
+  difficultyLabel: string,
+  game: ChessPositionState | undefined,
+  aiColor: PieceColor,
+): ChessAiMatchSettingsDescription | null {
+  if (game === undefined) {
+    return null
+  }
+
+  const resolvedGame = resolveChessPositionSnapshot(game)
+
+  if (
+    resolvedGame.status !== 'checkmate' &&
+    resolvedGame.status !== 'stalemate' &&
+    resolvedGame.status !== 'draw'
+  ) {
+    return null
+  }
+
+  const sceneStatus = describeChessSceneStatus(resolvedGame)
+
+  return {
+    modeLabel,
+    difficultyLabel,
+    statusLabel:
+      resolvedGame.status === 'checkmate'
+        ? resolvedGame.winner === aiColor
+          ? 'AI wins'
+          : 'Human wins'
+        : sceneStatus.statusLabel,
+    statusDetail: sceneStatus.statusDetail,
   }
 }

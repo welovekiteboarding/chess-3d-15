@@ -6,19 +6,23 @@ import {
   setChessAiMode,
   type ChessAiMatchSettings,
 } from '../../ai/gameMode'
+import type { ChessPositionState } from '../../types/chess'
 
 interface ChessAiMatchControlsProps {
+  game?: ChessPositionState
   isThinking?: boolean
   value: ChessAiMatchSettings
   onChange: (nextValue: ChessAiMatchSettings) => void
 }
 
 export function ChessAiMatchControls({
+  game,
   isThinking = false,
   value,
   onChange,
 }: ChessAiMatchControlsProps) {
   const description = describeChessAiMatchSettings(value, {
+    game,
     isThinking,
   })
 
