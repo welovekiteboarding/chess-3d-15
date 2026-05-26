@@ -84,4 +84,30 @@ export interface ChessGameState extends ChessPositionSnapshot {
   history: ChessMoveRecord[]
 }
 
+export type ChessScenePiece = ChessPiecePlacement
+
+export interface ChessSceneLastMove {
+  from: ChessSquare
+  to: ChessSquare
+  promotion: PromotionPieceType | null
+}
+
+export interface ChessSceneSnapshot {
+  pieces: ReadonlyArray<ChessScenePiece>
+  turn: PieceColor
+  status: GameStatus
+  checkedColor: PieceColor | null
+  winner: PieceColor | null
+  lastMove: ChessSceneLastMove | null
+}
+
+export type ChessSceneListener = (snapshot: ChessSceneSnapshot) => void
+
+export interface ChessSceneBinding {
+  getGame(): ChessGameState
+  getSnapshot(): ChessSceneSnapshot
+  move(input: MoveInput): ChessSceneSnapshot
+  subscribe(listener: ChessSceneListener): () => void
+}
+
 export type LegalMove = ChessMove
