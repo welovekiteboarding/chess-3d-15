@@ -5,7 +5,7 @@ import {
   createChessSceneSnapshot,
   describeChessSceneStatus,
 } from './chessScene'
-import type { ChessGameState, MoveInput } from '../types/chess'
+import type { ChessGameState, ChessSceneSnapshot, MoveInput } from '../types/chess'
 
 function playMoves(game: ChessGameState, moves: MoveInput[]): ChessGameState {
   return moves.reduce((state, move) => makeMove(state, move), game)
@@ -111,6 +111,46 @@ describe('createChessSceneBinding', () => {
     expect(updateListener.mock.calls[1]![0]).toEqual(nextSnapshot)
   })
 
+  it('isolates move snapshots across subscribers', () => {
+    const binding = createChessSceneBinding()
+    const firstListener = vi.fn((snapshot) => {
+      if (snapshot.lastMove !== null) {
+        snapshot.pieces[0]!.square = 'c3'
+      }
+    })
+    const secondListener = vi.fn()
+
+    binding.subscribe(firstListener)
+    binding.subscribe(secondListener)
+
+    binding.move({ from: 'e2', to: 'e4' })
+
+    const secondMoveSnapshot = secondListener.mock.calls[1]![0] as ChessSceneSnapshot
+
+    expect(secondListener).toHaveBeenCalledTimes(2)
+    expect(secondMoveSnapshot.lastMove).toEqual({
+      from: 'e2',
+      to: 'e4',
+      promotion: null,
+    })
+    expect(
+      secondMoveSnapshot.pieces.find(
+        (piece) =>
+          piece.square === 'e4' &&
+          piece.color === 'white' &&
+          piece.type === 'pawn',
+      ),
+    ).toBeDefined()
+    expect(
+      secondMoveSnapshot.pieces.find(
+        (piece) =>
+          piece.square === 'c3' &&
+          piece.color === 'white' &&
+          piece.type === 'rook',
+      ),
+    ).toBeUndefined()
+  })
+
   it('removes captured pieces from the scene snapshot', () => {
     const binding = createChessSceneBinding()
 
@@ -189,6 +229,46 @@ describe('createChessSceneBinding', () => {
       lastMove: null,
     })
     expect(binding.getGame().history).toHaveLength(0)
+  })
+
+  it('returns cloned game data so external callers cannot mutate binding state', () => {
+    const binding = createChessSceneBinding()
+    const exposedGame = binding.getGame()
+
+    exposedGame.pieces[0]!.square = 'h8'
+    exposedGame.history.push({
+      index: 999,
+      input: { from: 'a2', to: 'a3' },
+      move: {
+        from: 'a2',
+        to: 'a3',
+        piece: { color: 'white', type: 'pawn' },
+        capturedPiece: null,
+        promotion: null,
+        isCapture: false,
+        isCheck: false,
+        isCheckmate: false,
+        isStalemate: false,
+        isCastling: false,
+        isEnPassant: false,
+        rookFrom: null,
+        rookTo: null,
+      },
+      before: createChessGame(),
+      after: createChessGame(),
+    })
+
+    const internalGame = binding.getGame()
+
+    expect(
+      internalGame.pieces.find(
+        (piece) =>
+          piece.square === 'a1' &&
+          piece.color === 'white' &&
+          piece.type === 'rook',
+      ),
+    ).toBeDefined()
+    expect(internalGame.history).toHaveLength(0)
   })
 })
 

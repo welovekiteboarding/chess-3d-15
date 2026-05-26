@@ -1,11 +1,14 @@
 import { createChessGame, makeMove } from '../chess/engine'
 import { oppositeColor } from './chessboard'
 import type {
+  ChessMove,
+  ChessMoveRecord,
   ChessGameState,
   ChessSceneBinding,
   ChessSceneLastMove,
   ChessSceneListener,
   ChessSceneSnapshot,
+  ChessPositionSnapshot,
   PieceColor,
   MoveInput,
 } from '../types/chess'
@@ -32,12 +35,12 @@ export function createChessSceneSnapshot(
 export function createChessSceneBinding(
   initialGame: ChessGameState = createChessGame(),
 ): ChessSceneBinding {
-  let game = initialGame
+  let game = cloneChessGameState(initialGame)
   const listeners = new Set<ChessSceneListener>()
 
   return {
     getGame() {
-      return game
+      return cloneChessGameState(game)
     },
     getSnapshot() {
       return createChessSceneSnapshot(game)
@@ -119,10 +122,91 @@ function notifyListeners(
   snapshot: ChessSceneSnapshot,
 ): void {
   for (const listener of listeners) {
-    listener(snapshot)
+    listener(cloneChessSceneSnapshot(snapshot))
   }
 }
 
 function formatColor(color: PieceColor): string {
   return color[0]!.toUpperCase() + color.slice(1)
+}
+
+function cloneChessGameState(game: ChessGameState): ChessGameState {
+  return {
+    ...clonePositionSnapshot(game),
+    history: game.history.map(cloneChessMoveRecord),
+  }
+}
+
+function cloneChessMoveRecord(record: ChessMoveRecord): ChessMoveRecord {
+  return {
+    index: record.index,
+    input: {
+      from: record.input.from,
+      to: record.input.to,
+      ...(record.input.promotion === undefined
+        ? {}
+        : { promotion: record.input.promotion }),
+    },
+    move: cloneChessMove(record.move),
+    before: clonePositionSnapshot(record.before),
+    after: clonePositionSnapshot(record.after),
+  }
+}
+
+function cloneChessMove(move: ChessMove): ChessMove {
+  return {
+    from: move.from,
+    to: move.to,
+    piece: { ...move.piece },
+    capturedPiece:
+      move.capturedPiece === null ? null : { ...move.capturedPiece },
+    promotion: move.promotion,
+    isCapture: move.isCapture,
+    isCheck: move.isCheck,
+    isCheckmate: move.isCheckmate,
+    isStalemate: move.isStalemate,
+    isCastling: move.isCastling,
+    isEnPassant: move.isEnPassant,
+    rookFrom: move.rookFrom,
+    rookTo: move.rookTo,
+  }
+}
+
+function clonePositionSnapshot(
+  snapshot: ChessPositionSnapshot,
+): ChessPositionSnapshot {
+  return {
+    pieces: snapshot.pieces.map((piece) => ({ ...piece })),
+    turn: snapshot.turn,
+    castlingRights: {
+      white: { ...snapshot.castlingRights.white },
+      black: { ...snapshot.castlingRights.black },
+    },
+    enPassantTarget: snapshot.enPassantTarget,
+    halfmoveClock: snapshot.halfmoveClock,
+    fullmoveNumber: snapshot.fullmoveNumber,
+    status: snapshot.status,
+    checkedColor: snapshot.checkedColor,
+    winner: snapshot.winner,
+  }
+}
+
+function cloneChessSceneSnapshot(
+  snapshot: ChessSceneSnapshot,
+): ChessSceneSnapshot {
+  return {
+    pieces: snapshot.pieces.map((piece) => ({ ...piece })),
+    turn: snapshot.turn,
+    status: snapshot.status,
+    checkedColor: snapshot.checkedColor,
+    winner: snapshot.winner,
+    lastMove:
+      snapshot.lastMove === null
+        ? null
+        : {
+            from: snapshot.lastMove.from,
+            to: snapshot.lastMove.to,
+            promotion: snapshot.lastMove.promotion,
+          },
+  }
 }
