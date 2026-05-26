@@ -71,21 +71,24 @@ export function describeChessSceneStatus(
 
   switch (snapshot.status) {
     case 'check': {
-      const checkedColor = formatColor(snapshot.checkedColor ?? snapshot.turn)
+      const checkedColor = snapshot.checkedColor ?? snapshot.turn
+      const checkedColorLabel = formatColor(checkedColor)
 
       return {
-        turnLabel: `${activeColorLabel} to move`,
-        statusLabel: `${checkedColor} is in check`,
-        statusDetail: `${activeColorLabel} must answer the threat on this turn.`,
+        turnLabel: `${checkedColorLabel} to move`,
+        statusLabel: `${checkedColorLabel} is in check`,
+        statusDetail: `${checkedColorLabel} must answer the threat on this turn.`,
       }
     }
     case 'checkmate': {
-      const winner = formatColor(snapshot.winner ?? oppositeColor(snapshot.turn))
+      const winnerColor = snapshot.winner ?? oppositeColor(snapshot.turn)
+      const winner = formatColor(winnerColor)
+      const losingColorLabel = formatColor(oppositeColor(winnerColor))
 
       return {
-        turnLabel: `${activeColorLabel} to move`,
+        turnLabel: `${losingColorLabel} to move`,
         statusLabel: 'Checkmate',
-        statusDetail: `${winner} wins. ${activeColorLabel} has no legal move to escape check.`,
+        statusDetail: `${winner} wins. ${losingColorLabel} has no legal move to escape check.`,
       }
     }
     case 'stalemate':

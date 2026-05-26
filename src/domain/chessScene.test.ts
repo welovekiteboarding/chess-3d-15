@@ -273,6 +273,34 @@ describe('createChessSceneBinding', () => {
 })
 
 describe('describeChessSceneStatus', () => {
+  it('prefers explicit status fields when a scene snapshot is partially denormalized', () => {
+    expect(
+      describeChessSceneStatus({
+        turn: 'white',
+        status: 'check',
+        checkedColor: 'black',
+        winner: null,
+      }),
+    ).toEqual({
+      turnLabel: 'Black to move',
+      statusLabel: 'Black is in check',
+      statusDetail: 'Black must answer the threat on this turn.',
+    })
+
+    expect(
+      describeChessSceneStatus({
+        turn: 'black',
+        status: 'checkmate',
+        checkedColor: 'black',
+        winner: 'black',
+      }),
+    ).toEqual({
+      turnLabel: 'White to move',
+      statusLabel: 'Checkmate',
+      statusDetail: 'Black wins. White has no legal move to escape check.',
+    })
+  })
+
   it('describes active and check positions for UI consumers', () => {
     const activeGame = createChessGame()
     const checkedGame = createChessGame(
