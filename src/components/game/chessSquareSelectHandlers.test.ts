@@ -235,6 +235,38 @@ describe('chessSquareSelectHandlers', () => {
     )
   })
 
+  it('infers a mouse click pointer type from the preceding pointer-down when click metadata omits it', () => {
+    const onSquareSelect = vi.fn()
+    const handlers = createChessSquareSelectHandlers('b5', onSquareSelect)
+
+    handlers.onPointerDown({
+      clientX: 88,
+      clientY: 132,
+      nativeEvent: {
+        clientX: 88,
+        clientY: 132,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 360,
+    })
+    handlers.onClick({
+      clientX: 90,
+      clientY: 133,
+      stopPropagation() {},
+      timeStamp: 384,
+    })
+
+    expect(onSquareSelect).toHaveBeenCalledWith(
+      'b5',
+      expect.objectContaining({
+        source: 'click',
+        pointerType: 'mouse',
+        timestampMs: 384,
+      }),
+    )
+  })
+
   it('ignores non-primary pointer and mouse button input', () => {
     const onSquareSelect = vi.fn()
     const handlers = createChessSquareSelectHandlers('c3', onSquareSelect)

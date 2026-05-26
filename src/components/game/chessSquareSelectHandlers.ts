@@ -43,6 +43,11 @@ interface ChessMousePointerDownSnapshot {
   timestampMs: number
 }
 
+interface ChessMouseClickOutcome {
+  ignore: boolean
+  pointerType: 'mouse' | null
+}
+
 type ChessSquareSelectCallback = NonNullable<
   Parameters<typeof createChessSquareSelectHandlers>[1]
 >
@@ -58,13 +63,21 @@ export function createChessSquareSelectHandlers(
 ): ChessSquareSelectHandlerSet {
   return {
     onClick(event) {
-      if (shouldIgnoreMouseClickAfterDrag(event, onSquareSelect)) {
+      const mouseClickOutcome = resolveMouseClickOutcome(event, onSquareSelect)
+
+      if (mouseClickOutcome.ignore) {
         event.preventDefault?.()
         event.stopPropagation()
         return
       }
 
-      dispatchChessSquareSelect(square, 'click', event, onSquareSelect)
+      dispatchChessSquareSelect(
+        square,
+        'click',
+        event,
+        onSquareSelect,
+        mouseClickOutcome.pointerType,
+      )
     },
     onPointerDown(event) {
       rememberMousePointerDown(event, onSquareSelect)
@@ -81,6 +94,7 @@ function dispatchChessSquareSelect(
   source: ChessSquareSelectInput['source'],
   event: ChessSquareSelectEvent,
   onSquareSelect?: (square: ChessSquare, input?: ChessSquareSelectInput) => void,
+  pointerTypeOverride?: ChessSquareSelectInput['pointerType'] | null,
 ) {
   event.preventDefault?.()
   event.stopPropagation()
@@ -98,7 +112,8 @@ function dispatchChessSquareSelect(
 
   onSquareSelect?.(square, {
     source,
-    pointerType: resolveChessSquareSelectPointerType(event),
+    pointerType:
+      pointerTypeOverride ?? resolveChessSquareSelectPointerType(event),
     ...(timestampMs === undefined ? {} : { timestampMs }),
   })
 }
@@ -240,12 +255,15 @@ function trackMousePointerDrag(
   }
 }
 
-function shouldIgnoreMouseClickAfterDrag(
+function resolveMouseClickOutcome(
   event: ChessSquareSelectEvent,
   onSquareSelect?: ChessSquareSelectCallback,
-): boolean {
+): ChessMouseClickOutcome {
   if (onSquareSelect === undefined) {
-    return false
+    return {
+      ignore: false,
+      pointerType: null,
+    }
   }
 
   const previousPointerDown = mousePointerDownSnapshots.get(onSquareSelect)
@@ -253,33 +271,47 @@ function shouldIgnoreMouseClickAfterDrag(
   mousePointerDownSnapshots.delete(onSquareSelect)
 
   if (previousPointerDown === undefined) {
-    return false
+    return {
+      ignore: false,
+      pointerType: null,
+    }
   }
 
   if (previousPointerDown.dragged) {
-    return true
+    return {
+      ignore: true,
+      pointerType: 'mouse',
+    }
   }
 
   const coordinates = resolvePointerCoordinates(event)
   const timestampMs = resolveChessSquareSelectTimestampMs(event)
 
   if (coordinates === undefined || timestampMs === undefined) {
-    return false
+    return {
+      ignore: false,
+      pointerType: 'mouse',
+    }
   }
 
   const elapsedMs = timestampMs - previousPointerDown.timestampMs
 
   if (elapsedMs < 0 || elapsedMs > CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS) {
-    return false
+    return {
+      ignore: false,
+      pointerType: 'mouse',
+    }
   }
 
   const deltaX = coordinates.clientX - previousPointerDown.clientX
   const deltaY = coordinates.clientY - previousPointerDown.clientY
 
-  return (
-    deltaX * deltaX + deltaY * deltaY >
-    CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX_SQUARED
-  )
+  return {
+    ignore:
+      deltaX * deltaX + deltaY * deltaY >
+      CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX_SQUARED,
+    pointerType: 'mouse',
+  }
 }
 
 function resolvePointerCoordinates(
