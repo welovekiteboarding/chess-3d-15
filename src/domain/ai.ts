@@ -68,6 +68,11 @@ interface SearchContext {
   transpositionTable: Map<string, SearchCacheEntry>
 }
 
+interface SearchIterationResult {
+  bestMoves: LegalMove[]
+  completed: boolean
+}
+
 export const AI_SEARCH_DEPTHS = {
   medium: 2,
   hard: 3,
@@ -213,44 +218,35 @@ function selectSearchMove(
   options: AiSearchOptions,
 ): LegalMove {
   const random = request.random ?? Math.random
-  const orderedMoves = orderMovesForSearch(legalMoves)
   const searchPosition = createSearchPosition(request.game)
+  let orderedMoves = orderMovesForSearch(legalMoves)
   const bestMoves: LegalMove[] = []
   const depth = normalizeSearchDepth(options.depth)
   const useAlphaBeta = options.alphaBetaPruning ?? false
   const context = createSearchContext(request, options, useAlphaBeta)
-  let bestScore = Number.NEGATIVE_INFINITY
-  let alpha = Number.NEGATIVE_INFINITY
-  const beta = Number.POSITIVE_INFINITY
+  let fallbackMoves = orderedMoves.slice(0, 1)
 
-  for (const move of orderedMoves) {
-    if (context.terminatedEarly && bestMoves.length > 0) {
-      break
-    }
-
-    const nextGame = applyMove(searchPosition, move)
-    const score = minimax(
-      nextGame,
-      depth - 1,
-      alpha,
-      beta,
+  for (let currentDepth = 1; currentDepth <= depth; currentDepth += 1) {
+    const iterationResult = searchRootMovesAtDepth(
+      searchPosition,
+      orderedMoves,
+      currentDepth,
       context,
     )
 
-    if (score > bestScore) {
-      bestScore = score
+    fallbackMoves = iterationResult.bestMoves
+
+    if (iterationResult.completed) {
       bestMoves.length = 0
-      bestMoves.push(move)
-    } else if (score === bestScore) {
-      bestMoves.push(move)
+      bestMoves.push(...iterationResult.bestMoves)
+      orderedMoves = prioritizeBestMoves(orderedMoves, iterationResult.bestMoves)
+      continue
     }
 
-    if (context.useAlphaBeta) {
-      alpha = Math.max(alpha, bestScore)
-    }
+    break
   }
 
-  return pickRandomMove(bestMoves, random)
+  return pickRandomMove(bestMoves.length > 0 ? bestMoves : fallbackMoves, random)
 }
 
 function minimax(
@@ -448,6 +444,70 @@ function evaluatePawnAdvancement(
 
 function orderMovesForSearch(legalMoves: LegalMove[]): LegalMove[] {
   return rankEasyMoves(legalMoves).map((entry) => entry.move)
+}
+
+function searchRootMovesAtDepth(
+  searchPosition: ChessSearchPosition,
+  orderedMoves: LegalMove[],
+  depth: number,
+  context: SearchContext,
+): SearchIterationResult {
+  const bestMoves: LegalMove[] = []
+  let bestScore = Number.NEGATIVE_INFINITY
+  let alpha = Number.NEGATIVE_INFINITY
+  const beta = Number.POSITIVE_INFINITY
+
+  for (const move of orderedMoves) {
+    if (context.terminatedEarly && bestMoves.length > 0) {
+      break
+    }
+
+    const nextGame = applyMove(searchPosition, move)
+    const score = minimax(
+      nextGame,
+      depth - 1,
+      alpha,
+      beta,
+      context,
+    )
+
+    if (score > bestScore) {
+      bestScore = score
+      bestMoves.length = 0
+      bestMoves.push(move)
+    } else if (score === bestScore) {
+      bestMoves.push(move)
+    }
+
+    if (context.useAlphaBeta) {
+      alpha = Math.max(alpha, bestScore)
+    }
+  }
+
+  return {
+    bestMoves,
+    completed: !context.terminatedEarly,
+  }
+}
+
+function prioritizeBestMoves(
+  orderedMoves: LegalMove[],
+  bestMoves: LegalMove[],
+): LegalMove[] {
+  const bestMoveKeys = new Set(bestMoves.map(createMoveKey))
+  const prioritizedMoves: LegalMove[] = []
+  const remainingMoves: LegalMove[] = []
+
+  for (const move of orderedMoves) {
+    if (bestMoveKeys.has(createMoveKey(move))) {
+      prioritizedMoves.push(move)
+      continue
+    }
+
+    remainingMoves.push(move)
+  }
+
+  return [...prioritizedMoves, ...remainingMoves]
 }
 
 function compareScoredMoves(left: AiScoredMove, right: AiScoredMove): number {

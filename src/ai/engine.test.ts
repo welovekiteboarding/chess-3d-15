@@ -202,6 +202,47 @@ describe('selectAiMove', () => {
 
     expect(diagnostics.cacheHits).toBeGreaterThan(0)
   })
+
+  it('falls back to the deepest completed search depth when the next depth hits its budget', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+        { square: 'e6', color: 'black', type: 'bishop' },
+      ],
+      { turn: 'white' },
+    )
+    const completedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.medium,
+        alphaBetaPruning: true,
+      },
+    )
+    const budgetedDiagnostics = createAiSearchDiagnostics()
+    const budgetedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        diagnostics: budgetedDiagnostics,
+        maxPositions: 300,
+      },
+    )
+
+    expect(moveKey(budgetedMove)).toBe(moveKey(completedMove))
+    expect(budgetedDiagnostics.terminatedEarly).toBe(true)
+  })
 })
 
 describe('scoreEasyMove', () => {
