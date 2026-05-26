@@ -23,6 +23,8 @@
   --panel-strong: rgba(11, 16, 18, 0.9);
   --board-glass: rgba(7, 13, 15, 0.82);
   --board-shadow: 0 28px 70px rgba(0, 0, 0, 0.38);
+  --move-accent: #82c59a;
+  --danger-accent: #cb6a56;
 }
 
 * {
@@ -248,6 +250,19 @@ h1 {
   box-shadow:
     inset 0 0 0 1px rgba(247, 240, 224, 0.06),
     inset 0 30px 40px rgba(255, 255, 255, 0.03);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.board-stage__viewport--invalid {
+  border-color: rgba(203, 106, 86, 0.68);
+  box-shadow:
+    inset 0 0 0 1px rgba(247, 240, 224, 0.06),
+    inset 0 30px 40px rgba(255, 255, 255, 0.03),
+    0 0 0 1px rgba(203, 106, 86, 0.32),
+    0 0 36px rgba(203, 106, 86, 0.18);
+  animation: board-stage-invalid-pulse 240ms ease-out;
 }
 
 .board-canvas {
@@ -348,6 +363,56 @@ h1 {
   background: rgba(247, 240, 224, 0.04);
   font-size: 0.95rem;
   line-height: 1.55;
+}
+
+.board-stage__feedback {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(130, 197, 154, 0.18);
+  border-radius: 1.2rem;
+  background: rgba(130, 197, 154, 0.06);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.board-stage__feedback--invalid {
+  border-color: rgba(203, 106, 86, 0.32);
+  background: rgba(203, 106, 86, 0.08);
+  box-shadow: 0 0 0 1px rgba(203, 106, 86, 0.08);
+}
+
+.board-stage__feedback-title,
+.board-stage__feedback-detail {
+  margin: 0;
+}
+
+.board-stage__feedback-title {
+  color: #fff7e8;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.board-stage__feedback-detail {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+@keyframes board-stage-invalid-pulse {
+  0% {
+    transform: scale(0.997);
+  }
+
+  60% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .game-shell-page__footer {
