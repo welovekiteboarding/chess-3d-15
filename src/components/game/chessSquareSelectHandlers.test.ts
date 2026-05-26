@@ -333,6 +333,35 @@ describe('chessSquareSelectHandlers', () => {
     expect(onSquareSelect).not.toHaveBeenCalled()
   })
 
+  it('ignores a slow mouse drag across squares even when pointer-move tracking misses it', () => {
+    const onSquareSelect = vi.fn()
+    const sourceHandlers = createChessSquareSelectHandlers('e4', onSquareSelect)
+    const targetHandlers = createChessSquareSelectHandlers('f4', onSquareSelect)
+
+    sourceHandlers.onPointerDown({
+      clientX: 120,
+      clientY: 84,
+      nativeEvent: {
+        clientX: 120,
+        clientY: 84,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 100,
+    })
+    targetHandlers.onClick({
+      clientX: 142,
+      clientY: 84,
+      nativeEvent: {
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 760,
+    })
+
+    expect(onSquareSelect).not.toHaveBeenCalled()
+  })
+
   it('ignores non-primary pointer and mouse button input', () => {
     const onSquareSelect = vi.fn()
     const handlers = createChessSquareSelectHandlers('c3', onSquareSelect)

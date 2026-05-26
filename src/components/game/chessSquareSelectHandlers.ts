@@ -292,7 +292,19 @@ function resolveMouseClickOutcome(
   ) {
     const elapsedMs = timestampMs - previousPointerDown.timestampMs
 
-    if (elapsedMs < 0 || elapsedMs > CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS) {
+    if (elapsedMs < 0) {
+      return {
+        ignore: false,
+        pointerType: 'mouse',
+      }
+    }
+
+    if (
+      elapsedMs > CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS &&
+      (coordinates === undefined ||
+        previousPointerDown.clientX === undefined ||
+        previousPointerDown.clientY === undefined)
+    ) {
       return {
         ignore: false,
         pointerType: 'mouse',
