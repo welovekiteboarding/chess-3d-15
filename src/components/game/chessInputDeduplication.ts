@@ -14,9 +14,7 @@ export interface ChessSquareSelectInput {
 
 interface PointerTypeCarrier {
   pointerType?: string
-  nativeEvent?: {
-    pointerType?: string
-  }
+  nativeEvent?: Event | { pointerType?: string }
 }
 
 export interface ChessHandledSquareSelect extends ChessSquareSelectInput {
@@ -42,8 +40,20 @@ export function resolveChessSquareSelectPointerType(
   event: PointerTypeCarrier,
 ): ChessSquareSelectPointerType {
   return normalizeChessSquareSelectPointerType(
-    event.pointerType ?? event.nativeEvent?.pointerType,
+    event.pointerType ?? resolveNestedPointerType(event.nativeEvent),
   )
+}
+
+function resolveNestedPointerType(
+  event: PointerTypeCarrier['nativeEvent'],
+): string | undefined {
+  if (typeof event !== 'object' || event === null || !('pointerType' in event)) {
+    return undefined
+  }
+
+  const pointerType = event.pointerType
+
+  return typeof pointerType === 'string' ? pointerType : undefined
 }
 
 export function shouldIgnoreDuplicateSquareSelect(

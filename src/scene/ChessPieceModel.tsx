@@ -7,9 +7,9 @@ import {
   resolveChessAnimationPose,
 } from '../components/game/chessMoveAnimations'
 import {
-  resolveChessSquareSelectPointerType,
   type ChessSquareSelectInput,
 } from '../components/game/chessInputDeduplication'
+import { createChessSquareSelectHandlers } from '../components/game/chessSquareSelectHandlers'
 import type {
   ChessScenePiece,
   ChessSquare,
@@ -304,16 +304,14 @@ function ChessPiece({
 }) {
   const position = squareToScenePosition(piece.square, BOARD_SURFACE_Y)
   const isSelected = piece.square === selectedSquare
+  const squareSelectHandlers = createChessSquareSelectHandlers(
+    piece.square,
+    onSquareSelect,
+  )
 
   return (
     <group
-      onPointerDown={(event) => {
-        event.stopPropagation()
-        onSquareSelect?.(piece.square, {
-          source: 'pointerdown',
-          pointerType: resolveChessSquareSelectPointerType(event),
-        })
-      }}
+      {...squareSelectHandlers}
       position={position}
       rotation={[0, piece.color === 'white' ? 0 : Math.PI, 0]}
       scale={PIECE_SCALES[piece.type] * (isSelected ? 1.06 : 1)}
