@@ -26,6 +26,41 @@ function createMemoryStorage(): StorageLike {
 }
 
 describe('ChessHintControls', () => {
+  it('surfaces a restored saved opening snapshot without requiring a separate persistence prop', () => {
+    window.localStorage.clear()
+
+    try {
+      createChessGamePersistence().save(createChessGame())
+
+      const binding = createPersistedChessSceneBinding()
+
+      render(<ChessHintControls binding={binding} />)
+
+      const clearSavedGameButton = screen.getByRole('button', {
+        name: 'Clear saved game',
+      })
+
+      expect(
+        screen.getByText(
+          /This session is saved locally and will be restored after a reload\./i,
+        ),
+      ).toBeInTheDocument()
+      expect(clearSavedGameButton).toBeEnabled()
+
+      fireEvent.click(clearSavedGameButton)
+
+      expect(
+        screen.getByText(
+          /No saved game is stored yet\. Your first move will create a local save on this device\./i,
+        ),
+      ).toBeInTheDocument()
+      expect(clearSavedGameButton).toBeDisabled()
+      expect(createChessGamePersistence().load()).toBeNull()
+    } finally {
+      window.localStorage.clear()
+    }
+  })
+
   it('tracks autosave state from a persisted binding without requiring a separate persistence prop', () => {
     const binding = createPersistedChessSceneBinding({
       persistence: createChessGamePersistence({

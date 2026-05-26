@@ -47,6 +47,12 @@ export function ChessPersistenceControls({
       return
     }
 
+    try {
+      persistence?.clear()
+    } catch {
+      // Keep the reset action available even if storage cleanup fails here.
+    }
+
     binding.restart()
   }
 

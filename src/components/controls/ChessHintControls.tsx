@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   type ChessHint,
   createChessHintState,
@@ -6,7 +6,10 @@ import {
   showChessHintState,
   syncChessHintState,
 } from '../../ai/hint'
-import type { ChessGamePersistence } from '../../chess/persistence'
+import {
+  createChessGamePersistence,
+  type ChessGamePersistence,
+} from '../../chess/persistence'
 import type { ChessSceneBinding } from '../../types/chess'
 import { ChessPersistenceControls } from './ChessPersistenceControls'
 
@@ -22,6 +25,10 @@ export function ChessHintControls({
   binding,
   persistence,
 }: ChessHintControlsProps) {
+  const resolvedPersistence = useMemo(
+    () => resolveChessHintControlsPersistence(binding, persistence),
+    [binding, persistence],
+  )
   const [snapshot, setSnapshot] = useState(() => binding.getSnapshot())
   const [hintState, setHintState] = useState(() => createChessHintState())
 
@@ -64,7 +71,10 @@ export function ChessHintControls({
 
   return (
     <>
-      <ChessPersistenceControls binding={binding} persistence={persistence} />
+      <ChessPersistenceControls
+        binding={binding}
+        persistence={resolvedPersistence}
+      />
       <section
         aria-labelledby="hint-controls-title"
         className="board-stage__feedback"
@@ -93,4 +103,35 @@ function formatHintLabel(hint: ChessHint): string {
   return `${hint.from} -> ${hint.to}${
     hint.promotion === null ? '' : ` = ${hint.promotion}`
   }`
+}
+
+function resolveChessHintControlsPersistence(
+  binding: ChessSceneBinding,
+  persistence: ChessGamePersistence | undefined,
+): ChessGamePersistence {
+  if (persistence !== undefined) {
+    return persistence
+  }
+
+  const browserPersistence = createChessGamePersistence()
+
+  return {
+    load() {
+      const storedGame = browserPersistence.load()
+
+      if (storedGame !== null) {
+        return storedGame
+      }
+
+      const game = binding.getGame()
+
+      return game.history.length > 0 || game.status === 'resigned' ? game : null
+    },
+    save(game) {
+      browserPersistence.save(game)
+    },
+    clear() {
+      browserPersistence.clear()
+    },
+  }
 }
