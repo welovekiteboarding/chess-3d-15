@@ -130,11 +130,15 @@ function createDeferredMove() {
   }
 }
 
+function getBoardStatusList() {
+  return screen.getByRole('list', { name: 'Board status' })
+}
+
 describe('ChessBoardStage', () => {
   it('renders the current turn and engine-backed starting snapshot', () => {
     render(<ChessBoardStage />)
 
-    const notes = screen.getByRole('list')
+    const notes = getBoardStatusList()
 
     expect(
       screen.getByRole('heading', { name: 'White to move' }),
@@ -150,9 +154,9 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getAllByText('Issue C31-37')).toHaveLength(2)
+    expect(screen.getAllByText('Issue C31-38')).toHaveLength(2)
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-009a',
+      'chess-009b',
     )
     expect(screen.getByRole('heading', { name: 'White to move' }).closest('aside')).toHaveAttribute(
       'aria-live',
@@ -217,7 +221,7 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'Game ended' }),
     ).toBeInTheDocument()
-    expect(within(screen.getByRole('list')).getByText('Resignation')).toBeInTheDocument()
+    expect(within(getBoardStatusList()).getByText('Resignation')).toBeInTheDocument()
     expect(screen.getByText('Black wins by resignation.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Resign game' })).toBeDisabled()
 
@@ -376,7 +380,7 @@ describe('ChessBoardStage', () => {
 
     render(<ChessBoardStage initialGame={checkedGame} />)
 
-    const notes = screen.getByRole('list')
+    const notes = getBoardStatusList()
 
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
@@ -415,9 +419,7 @@ describe('ChessBoardStage', () => {
 
     const { rerender } = render(<ChessBoardStage initialGame={checkmateGame} />)
 
-    expect(
-      within(screen.getByRole('list')).getByText('Checkmate'),
-    ).toBeInTheDocument()
+    expect(within(getBoardStatusList()).getByText('Checkmate')).toBeInTheDocument()
     expect(
       screen.getByText('Black wins. White has no legal move to escape check.'),
     ).toBeInTheDocument()
@@ -427,9 +429,7 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
-    expect(
-      within(screen.getByRole('list')).getByText('Stalemate'),
-    ).toBeInTheDocument()
+    expect(within(getBoardStatusList()).getByText('Stalemate')).toBeInTheDocument()
     expect(
       screen.getByText(
         'Black has no legal moves, and neither king is in check.',
@@ -441,7 +441,7 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'White to move' }),
     ).toBeInTheDocument()
-    expect(within(screen.getByRole('list')).getByText('Draw')).toBeInTheDocument()
+    expect(within(getBoardStatusList()).getByText('Draw')).toBeInTheDocument()
     expect(
       screen.getByText(
         'The game is drawn by the fifty-move rule after 50 quiet moves by each side.',
@@ -464,9 +464,7 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'White to move' }),
     ).toBeInTheDocument()
-    expect(
-      within(screen.getByRole('list')).getByText('Checkmate'),
-    ).toBeInTheDocument()
+    expect(within(getBoardStatusList()).getByText('Checkmate')).toBeInTheDocument()
     expect(
       screen.getByText('Black wins. White has no legal move to escape check.'),
     ).toBeInTheDocument()
