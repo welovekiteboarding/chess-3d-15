@@ -43,7 +43,7 @@ describe('chessInputDeduplication', () => {
     ).toBe(true)
   })
 
-  it('allows a different square after the move advances', () => {
+  it('ignores a different-square click follow-up after touch pointer-down already handled the tap', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(
         {
@@ -59,7 +59,7 @@ describe('chessInputDeduplication', () => {
           source: 'click',
         },
       ),
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('allows a repeated selection after the deduplication window expires', () => {
@@ -134,6 +134,25 @@ describe('chessInputDeduplication', () => {
           timestampMs: 1_120,
           pointerType: 'touch',
           source: 'pointerdown',
+        },
+      ),
+    ).toBe(false)
+  })
+
+  it('allows a mouse click after a touch pointer-down changed the active square on a hybrid device', () => {
+    expect(
+      shouldIgnoreDuplicateSquareSelect(
+        {
+          square: 'e4',
+          timestampMs: 1_000,
+          pointerType: 'touch',
+          source: 'pointerdown',
+        },
+        {
+          square: 'e5',
+          timestampMs: 1_000 + 8,
+          pointerType: 'mouse',
+          source: 'click',
         },
       ),
     ).toBe(false)

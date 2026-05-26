@@ -281,6 +281,26 @@ describe('ChessBoardStage', () => {
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
   })
 
+  it('ignores a delayed touch click follow-up after a newer touch selection changed squares', () => {
+    render(<ChessBoardStage />)
+
+    const firstSquare = screen.getByRole('button', { name: 'select e2' })
+    const secondSquare = screen.getByRole('button', { name: 'select g1' })
+
+    fireEvent.pointerDown(firstSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    fireEvent.pointerDown(secondSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
+
+    fireEvent.click(firstSquare)
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'f3:move,h3:move',
+    )
+  })
+
   it('surfaces capture targets distinctly when a selected piece can capture', () => {
     render(
       <ChessBoardStage

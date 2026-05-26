@@ -65,10 +65,11 @@ export function shouldIgnoreDuplicateSquareSelect(
 
   return (
     previous !== null &&
-    previous.square === next.square &&
     elapsedMs >= 0 &&
     elapsedMs <= CHESS_INPUT_DEDUPLICATION_WINDOW_MS &&
     previous.source === 'pointerdown' &&
-    next.source === 'click'
+    previous.pointerType !== 'mouse' &&
+    next.source === 'click' &&
+    next.pointerType !== 'mouse'
   )
 }
