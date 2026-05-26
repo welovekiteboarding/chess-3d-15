@@ -5,7 +5,11 @@ import {
 } from '../../domain/chessScene'
 import { ChessScene } from '../../scene/ChessScene'
 import { squareToScenePosition } from '../../scene/boardCoordinates'
-import type { ChessGameState, ChessSceneBinding } from '../../types/chess'
+import type {
+  ChessGameState,
+  ChessSceneBinding,
+  ChessSceneLastMove,
+} from '../../types/chess'
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
@@ -39,13 +43,9 @@ export function ChessBoardStage({
     () => describeChessSceneStatus(snapshot),
     [snapshot],
   )
-  const lastMoveLabel = snapshot.lastMove
-    ? `${snapshot.lastMove.from} -> ${snapshot.lastMove.to}${
-        snapshot.lastMove.promotion === null
-          ? ''
-          : ` = ${snapshot.lastMove.promotion}`
-      }`
-    : 'Opening setup'
+  const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
+  const moveChipLabel =
+    snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
 
   return (
     <section className="board-stage" aria-labelledby="board-stage-title">
@@ -67,13 +67,13 @@ export function ChessBoardStage({
 
         <div className="board-stage__notes" role="list">
           <span className="board-chip" role="listitem">
-            Engine binding live
+            {statusLabel}
           </span>
           <span className="board-chip" role="listitem">
             {`${snapshot.pieces.length} scene pieces`}
           </span>
           <span className="board-chip" role="listitem">
-            {snapshot.lastMove === null ? 'Opening position' : 'Move history live'}
+            {moveChipLabel}
           </span>
         </div>
 
@@ -112,4 +112,14 @@ export function ChessBoardStage({
       </aside>
     </section>
   )
+}
+
+function formatLastMoveLabel(lastMove: ChessSceneLastMove | null): string {
+  if (lastMove === null) {
+    return 'Opening setup'
+  }
+
+  return `${lastMove.from} -> ${lastMove.to}${
+    lastMove.promotion === null ? '' : ` = ${lastMove.promotion}`
+  }`
 }
