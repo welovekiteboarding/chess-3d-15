@@ -23,6 +23,15 @@ function renderRoute(path: string) {
 }
 
 describe('app routes', () => {
+  it('renders the branded observatory shell around the routes', () => {
+    renderRoute('/')
+
+    expect(
+      screen.getByRole('img', { name: /chess 3d crest/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Volumetric match room')).toBeInTheDocument()
+  })
+
   it('renders the landing page with a game shell call to action', () => {
     renderRoute('/')
 

@@ -170,6 +170,20 @@ describe('ChessBoardStage', () => {
     )
   })
 
+  it('organizes the surrounding board UI into clear overview sections', () => {
+    render(<ChessBoardStage />)
+
+    expect(
+      screen.getByRole('heading', { name: 'Board brief' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Play profile' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Build notes' }),
+    ).toBeInTheDocument()
+  })
+
   it('wires the reusable move-history surface into the live board rail', () => {
     const binding = createChessSceneBinding()
 

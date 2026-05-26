@@ -30,7 +30,7 @@ export function ChessGameControls({
   return (
     <section
       aria-labelledby="game-controls-title"
-      className="board-stage__feedback"
+      className="board-stage__feedback board-stage__feedback--control"
     >
       <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
       <p className="board-stage__feedback-title" id="game-controls-title">
@@ -40,9 +40,9 @@ export function ChessGameControls({
       <p className="board-stage__feedback-detail">
         {`Graph task ${GRAPH_TASK_ID} finishes the live controls with undo availability, readable move history, and captured-piece tracking.`}
       </p>
-      <div className="board-stage__selection-grid">
+      <div className="board-stage__button-grid">
         <button
-          className="board-stage__selection-option"
+          className="board-stage__action-button"
           disabled={!controlsState.canRestart}
           onClick={onRestart}
           type="button"
@@ -50,7 +50,7 @@ export function ChessGameControls({
           Restart game
         </button>
         <button
-          className="board-stage__selection-option"
+          className="board-stage__action-button"
           disabled={!controlsState.canUndo}
           onClick={onUndo}
           type="button"
@@ -58,7 +58,7 @@ export function ChessGameControls({
           Undo move
         </button>
         <button
-          className="board-stage__selection-option"
+          className="board-stage__action-button"
           disabled={!controlsState.canResign}
           onClick={onResign}
           type="button"

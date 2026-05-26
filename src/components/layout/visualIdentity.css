@@ -1,0 +1,431 @@
+body {
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      circle at 12% 12%,
+      rgba(231, 191, 114, 0.18),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 88% 14%,
+      rgba(105, 145, 139, 0.14),
+      transparent 22%
+    ),
+    linear-gradient(180deg, #131920 0%, #0b0f14 50%, #06080c 100%);
+}
+
+#root {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell {
+  position: relative;
+  padding: clamp(1rem, 2vw, 1.6rem);
+}
+
+.app-shell__aurora,
+.app-shell__atlas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-shell__aurora {
+  z-index: -2;
+  background:
+    radial-gradient(
+      circle at 50% -8%,
+      rgba(244, 202, 116, 0.16),
+      transparent 36%
+    ),
+    radial-gradient(
+      circle at 82% 28%,
+      rgba(83, 122, 120, 0.12),
+      transparent 22%
+    );
+  filter: blur(14px);
+}
+
+.app-shell__atlas {
+  z-index: -1;
+  opacity: 0.24;
+  background: url('/chess-atlas.svg') center top / min(1280px, 100%) auto
+    no-repeat;
+  mix-blend-mode: screen;
+}
+
+.topbar {
+  position: relative;
+  max-width: 1240px;
+  margin: 0 auto 1.4rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.8rem;
+  border: 1px solid rgba(231, 191, 114, 0.2);
+  background:
+    linear-gradient(
+      120deg,
+      rgba(28, 34, 41, 0.9),
+      rgba(12, 17, 22, 0.72)
+    ),
+    rgba(10, 14, 18, 0.72);
+  box-shadow:
+    0 22px 70px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(1.8rem - 1px);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03),
+      transparent 36%,
+      transparent 66%,
+      rgba(231, 191, 114, 0.04)
+    );
+  pointer-events: none;
+}
+
+.brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+}
+
+.brand__mark {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0.45rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(231, 191, 114, 0.22);
+  background: linear-gradient(
+    180deg,
+    rgba(37, 48, 54, 0.84),
+    rgba(13, 17, 21, 0.92)
+  );
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.brand__copy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.brand__name {
+  color: #fff1c9;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.brand__tagline {
+  color: rgba(247, 240, 224, 0.72);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.topbar__actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.topbar__edition {
+  margin: 0;
+  color: rgba(247, 240, 224, 0.66);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.topbar__nav {
+  display: flex;
+  align-items: center;
+  padding: 0.28rem;
+  border: 1px solid rgba(231, 191, 114, 0.16);
+  border-radius: 999px;
+  background: rgba(247, 240, 224, 0.04);
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0.7rem 1.05rem;
+  border-radius: 999px;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible {
+  color: #fff7e8;
+  background: rgba(247, 240, 224, 0.08);
+}
+
+.page-shell {
+  max-width: 1240px;
+}
+
+.app-shell__frame {
+  position: relative;
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+  border-radius: 2.3rem;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 24, 31, 0.42),
+    rgba(9, 12, 17, 0.18)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 34px 110px rgba(0, 0, 0, 0.16);
+}
+
+.app-shell__frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(231, 191, 114, 0.1);
+  pointer-events: none;
+}
+
+.hero-panel {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(2.4rem, 6vw, 4rem);
+  border-radius: 2.2rem;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(24, 33, 41, 0.96),
+      rgba(10, 14, 19, 0.88)
+    ),
+    rgba(12, 18, 24, 0.82);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.26);
+}
+
+.hero-panel::before {
+  content: '';
+  position: absolute;
+  right: -5rem;
+  bottom: -6rem;
+  width: 23rem;
+  height: 23rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(231, 191, 114, 0.24),
+    rgba(231, 191, 114, 0)
+  );
+}
+
+.hero-panel::after {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: min(15rem, 32vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: url('/chess-atlas.svg') center / cover no-repeat;
+  opacity: 0.16;
+}
+
+.hero-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  letter-spacing: 0.28em;
+}
+
+h1 {
+  max-width: 10ch;
+  text-wrap: balance;
+  text-shadow: 0 18px 40px rgba(0, 0, 0, 0.26);
+}
+
+.hero-copy {
+  max-width: 42rem;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.action-row {
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 2.2rem;
+}
+
+.primary-button,
+.secondary-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.95rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #f1cf87 0%, #b7803e 100%);
+  color: #17120c;
+  box-shadow: 0 18px 34px rgba(183, 128, 62, 0.34);
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 42px rgba(183, 128, 62, 0.38);
+}
+
+.secondary-link {
+  border-color: rgba(231, 191, 114, 0.18);
+  background: rgba(247, 240, 224, 0.05);
+  color: #f7e8c2;
+}
+
+.secondary-link:hover,
+.secondary-link:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(231, 191, 114, 0.32);
+  background: rgba(247, 240, 224, 0.1);
+  color: #fff7e8;
+}
+
+.feature-grid {
+  margin-top: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.feature-card {
+  position: relative;
+  min-height: 100%;
+  border: 1px solid rgba(231, 191, 114, 0.14);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.02)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  left: 1.1rem;
+  width: 3.25rem;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(231, 191, 114, 0.9), transparent);
+}
+
+.feature-card h2 {
+  padding-top: 0.85rem;
+  font-size: 1.24rem;
+  letter-spacing: 0.03em;
+}
+
+.feature-card p {
+  max-width: 28ch;
+  line-height: 1.62;
+}
+
+.game-shell-page__footer {
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(231, 191, 114, 0.14);
+  border-radius: 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(21, 28, 34, 0.8),
+    rgba(11, 16, 21, 0.74)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(241, 207, 135, 0.95);
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .topbar__actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topbar__nav {
+    width: 100%;
+  }
+
+  .nav-link {
+    width: 100%;
+  }
+
+  .app-shell__frame {
+    border-radius: 1.7rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .brand__name {
+    font-size: 0.92rem;
+  }
+
+  .brand__tagline,
+  .topbar__edition {
+    letter-spacing: 0.18em;
+  }
+
+  .hero-panel {
+    padding: 2rem 1.5rem;
+  }
+
+  .hero-copy {
+    font-size: 1rem;
+  }
+
+  .primary-button,
+  .secondary-link {
+    width: 100%;
+  }
+
+  .feature-card p {
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link,
+  .primary-button,
+  .secondary-link {
+    transition: none;
+  }
+}

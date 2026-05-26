@@ -16,7 +16,7 @@ export function ChessMoveHistory({ game }: ChessMoveHistoryProps) {
   const capturedPieces = createChessCapturedPiecesBySide(game)
 
   return (
-    <div aria-labelledby="move-history-title">
+    <div aria-labelledby="move-history-title" className="board-stage__history-shell">
       <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
       <p className="board-stage__feedback-title" id="move-history-title">
         Move history
