@@ -378,6 +378,7 @@ export function ChessBoardStage({
   }
 
   function handleRestart() {
+    resetSquareSelectDeduplication()
     sceneBinding.restart()
   }
 
@@ -387,7 +388,13 @@ export function ChessBoardStage({
       ? oppositeColor(DEFAULT_CHESS_AI_COLOR)
       : game.turn
 
+    resetSquareSelectDeduplication()
     sceneBinding.resign(resignedColor)
+  }
+
+  function resetSquareSelectDeduplication() {
+    previousSquareSelectRef.current = null
+    relativeEventTimestampOffsetRef.current = null
   }
 
   return (

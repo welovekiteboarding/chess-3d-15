@@ -583,6 +583,59 @@ describe('ChessBoardStage', () => {
     vi.useRealTimers()
   })
 
+  it('resets touch deduplication after restart so the next click starts a fresh move', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-26T12:00:00.000Z'))
+
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 touch timed' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restart game' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    act(() => {
+      vi.advanceTimersByTime(120)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 click untimed' }))
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+
+    vi.useRealTimers()
+  })
+
+  it('resets touch deduplication after resign so an externally restarted game starts cleanly', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-26T12:00:00.000Z'))
+
+    const binding = createChessSceneBinding()
+
+    render(<ChessBoardStage binding={binding} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 touch timed' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resign game' }))
+    expect(
+      screen.getByRole('heading', { name: 'Game ended' }),
+    ).toBeInTheDocument()
+
+    act(() => {
+      binding.restart()
+    })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    act(() => {
+      vi.advanceTimersByTime(120)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 click untimed' }))
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+
+    vi.useRealTimers()
+  })
+
   it('ignores a delayed touch click follow-up after a newer touch selection changed squares', () => {
     render(<ChessBoardStage />)
 
