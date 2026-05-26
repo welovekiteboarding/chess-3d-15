@@ -33,6 +33,7 @@ const SEARCH_CHECK_BONUS = 0.5
 const SEARCH_CENTER_CONTROL_BONUS = 0.15
 const SEARCH_PAWN_ADVANCEMENT_BONUS = 0.05
 const SEARCH_CHECKMATE_SCORE = 1_000_000
+const FIFTY_MOVE_DRAW_HALFMOVE_CLOCK = 100
 const AI_SEARCH_POSITION_BUDGETS = {
   medium: 3_000,
   hard: 12_000,
@@ -266,6 +267,10 @@ function minimax(
 
     alpha = cachedResult.alpha
     beta = cachedResult.beta
+  }
+
+  if (game.halfmoveClock >= FIFTY_MOVE_DRAW_HALFMOVE_CLOCK) {
+    return storeSearchScore(cacheKey, depth, context, 0, 'exact')
   }
 
   if (shouldTerminateSearch(context)) {

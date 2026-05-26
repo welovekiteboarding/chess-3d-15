@@ -113,6 +113,7 @@ const ROOK_DIRECTIONS = [
 ] as const
 
 const QUEEN_DIRECTIONS = [...BISHOP_DIRECTIONS, ...ROOK_DIRECTIONS] as const
+const FIFTY_MOVE_DRAW_HALFMOVE_CLOCK = 100
 
 export function createChessGame(
   options: ChessGameOptions = {},
@@ -144,10 +145,28 @@ export function generateLegalMoves(
   game: ChessPositionState,
   square?: string,
 ): LegalMove[] {
+  if (isAutomaticDrawPosition(game)) {
+    return []
+  }
+
   const position = toInternalPosition(game)
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
   return generateLegalMovesInternal(position, targetSquare, true)
+}
+
+export function hasLegalMoves(
+  game: ChessPositionState,
+  square?: string,
+): boolean {
+  if (isAutomaticDrawPosition(game)) {
+    return false
+  }
+
+  const position = toInternalPosition(game)
+  const targetSquare = square === undefined ? undefined : parseSquare(square)
+
+  return hasLegalMovesInternal(position, targetSquare)
 }
 
 export function generateSearchLegalMoves(
@@ -233,6 +252,12 @@ export function createSearchPosition(
   return toInternalPosition(game)
 }
 
+export function resolveChessPositionSnapshot(
+  game: ChessPositionState,
+): ChessPositionSnapshot {
+  return createSnapshot(toInternalPosition(game))
+}
+
 export function createChessPositionKey(game: ChessPositionState): string {
   const position = toInternalPosition(game)
   const castlingRightsKey = createCastlingRightsKey(position.castlingRights)
@@ -258,6 +283,10 @@ export function generateSearchLegalMovesFromPosition(
   position: ChessSearchPosition,
   square?: string,
 ): LegalMove[] {
+  if (isAutomaticDrawPosition(position)) {
+    return []
+  }
+
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
   return generateLegalMovesInternal(
@@ -378,6 +407,12 @@ function deriveCastlingRights(board: BoardState): CastlingRightsByColor {
   }
 }
 
+function isAutomaticDrawPosition(
+  position: Pick<ChessPositionState, 'halfmoveClock'>,
+): boolean {
+  return position.halfmoveClock >= FIFTY_MOVE_DRAW_HALFMOVE_CLOCK
+}
+
 function hasPiece(
   board: BoardState,
   square: ChessSquare,
@@ -433,11 +468,19 @@ function createSnapshot(position: InternalPosition): ChessPositionSnapshot {
   const checkedColor = isKingInCheck(position, position.turn)
     ? position.turn
     : null
-  const legalMoveCount = generateLegalMovesInternal(position, undefined, false)
-    .length
+
+  if (isAutomaticDrawPosition(position)) {
+    return {
+      ...createPositionState(position),
+      status: 'draw',
+      checkedColor,
+      winner: null,
+    }
+  }
+
   let status: GameStatus = 'active'
 
-  if (legalMoveCount === 0) {
+  if (!hasLegalMovesInternal(position)) {
     status = checkedColor === null ? 'stalemate' : 'checkmate'
   } else if (checkedColor !== null) {
     status = 'check'
@@ -544,6 +587,25 @@ function generateLegalMovesInternal(
   }
 
   return legalMoves
+}
+
+function hasLegalMovesInternal(
+  position: InternalPosition,
+  square?: ChessSquare,
+): boolean {
+  const candidateMoves = square
+    ? generateMovesForSquare(position, square)
+    : generateMovesForTurn(position)
+
+  for (const candidate of candidateMoves) {
+    const nextPosition = applyMoveToPosition(position, candidate)
+
+    if (!isKingInCheck(nextPosition, position.turn)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function generateMovesForTurn(position: InternalPosition): BaseMove[] {

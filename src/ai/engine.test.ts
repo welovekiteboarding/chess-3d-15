@@ -33,6 +33,30 @@ function moveKey(move: LegalMove): string {
 
 describe('selectAiMove', () => {
   it.each<AiDifficulty>(['easy', 'medium', 'hard'])(
+    'rejects %s mode move selection from a drawn position',
+    (difficulty) => {
+      const game = createCustomGame(
+        [
+          { square: 'e1', color: 'white', type: 'king' },
+          { square: 'e8', color: 'black', type: 'king' },
+        ],
+        {
+          turn: 'white',
+          halfmoveClock: 100,
+        },
+      )
+
+      expect(() =>
+        selectAiMove({
+          game,
+          difficulty,
+          random: () => 0,
+        }),
+      ).toThrow(/terminal position/i)
+    },
+  )
+
+  it.each<AiDifficulty>(['easy', 'medium', 'hard'])(
     'returns a legal move for %s mode',
     (difficulty) => {
       const game = createChessGame()

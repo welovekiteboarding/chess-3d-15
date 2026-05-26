@@ -1,8 +1,8 @@
-import { createChessPositionKey } from '../chess/engine'
+import { createChessPositionKey, hasLegalMoves } from '../chess/engine'
 import type { AiDifficulty } from '../types/ai'
 import type {
   ChessGameState,
-  GameStatus,
+  ChessPositionState,
   LegalMove,
   PieceColor,
 } from '../types/chess'
@@ -21,7 +21,6 @@ export interface ChessAiMoveClient {
 }
 
 export const DEFAULT_CHESS_AI_COLOR: PieceColor = 'black'
-const ACTIVE_CHESS_AI_STATUSES: readonly GameStatus[] = ['active', 'check']
 
 export function createChessAiMoveClient(): ChessAiMoveClient {
   return new AiMoveWorkerClient()
@@ -29,13 +28,13 @@ export function createChessAiMoveClient(): ChessAiMoveClient {
 
 export function isChessAiControlledTurn(
   settings: ChessAiMatchSettings,
-  game: Pick<ChessGameState, 'status' | 'turn'>,
+  game: ChessPositionState,
   aiColor: PieceColor = DEFAULT_CHESS_AI_COLOR,
 ): boolean {
   return (
     isHumanVsAiMode(settings) &&
     game.turn === aiColor &&
-    ACTIVE_CHESS_AI_STATUSES.includes(game.status)
+    hasLegalMoves(game)
   )
 }
 

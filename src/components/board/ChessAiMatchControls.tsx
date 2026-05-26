@@ -6,19 +6,23 @@ import {
   setChessAiMode,
   type ChessAiMatchSettings,
 } from '../../ai/gameMode'
+import type { ChessPositionState } from '../../types/chess'
 
 interface ChessAiMatchControlsProps {
+  game?: ChessPositionState
   isThinking?: boolean
   value: ChessAiMatchSettings
   onChange: (nextValue: ChessAiMatchSettings) => void
 }
 
 export function ChessAiMatchControls({
+  game,
   isThinking = false,
   value,
   onChange,
 }: ChessAiMatchControlsProps) {
   const description = describeChessAiMatchSettings(value, {
+    game,
     isThinking,
   })
 
@@ -27,7 +31,7 @@ export function ChessAiMatchControls({
       aria-labelledby="ai-match-controls-title"
       className="board-stage__feedback"
     >
-      <p className="eyebrow">Graph task chess-007b</p>
+      <p className="eyebrow">Graph task chess-007c</p>
       <p className="board-stage__feedback-title" id="ai-match-controls-title">
         Human vs AI
       </p>
@@ -36,8 +40,8 @@ export function ChessAiMatchControls({
         {description.statusDetail}
       </p>
       <p className="board-stage__feedback-detail">
-        Graph task chess-007b connects one automated AI reply after each
-        completed human move.
+        Graph task chess-007c keeps the board locked during AI turns and
+        surfaces win, stalemate, and draw outcomes from engine state.
       </p>
 
       <fieldset className="board-stage__selection-group">

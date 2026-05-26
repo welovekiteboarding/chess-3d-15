@@ -150,11 +150,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-34')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-35')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-007b',
+      'chess-007c',
     )
-    expect(screen.getByText('Issue C31-34').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-35').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -251,6 +251,55 @@ describe('ChessBoardStage', () => {
     vi.useRealTimers()
   })
 
+  it('blocks further human moves for the full duration of an AI-controlled turn', async () => {
+    vi.useFakeTimers()
+
+    const pendingMove = createDeferredMove()
+    const aiMoveClient = {
+      dispose: vi.fn(),
+      selectMove: vi.fn(() => pendingMove.promise),
+    }
+
+    render(
+      <ChessBoardStage
+        aiMatchSettings={createChessAiMatchSettings({
+          mode: 'human-vs-ai',
+          difficulty: 'medium',
+        })}
+        createAiMoveClient={() => aiMoveClient}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'select g1' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+
+    act(() => {
+      vi.advanceTimersByTime(CHESS_MOVE_ANIMATION_DURATION_MS)
+    })
+
+    expect(screen.getAllByText('AI thinking')).not.toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select g1' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+
+    const gameAfterHumanMove = playMoves(createChessGame(), [
+      { from: 'e2', to: 'e4' },
+    ])
+
+    await act(async () => {
+      pendingMove.resolve(findLegalMove(gameAfterHumanMove, 'e7', 'e5'))
+      await pendingMove.promise
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'select g1' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
+
+    vi.useRealTimers()
+  })
+
   it('renders injected controls inside the live board rail', () => {
     render(<ChessBoardStage controls={<div>Hint controls surface</div>} />)
 
@@ -287,7 +336,7 @@ describe('ChessBoardStage', () => {
     expect(within(notes).getByText('Black is in check')).toBeInTheDocument()
   })
 
-  it('renders checkmate and stalemate states from engine state', () => {
+  it('renders checkmate, stalemate, and draw states from engine state', () => {
     const checkmateGame = playMoves(createChessGame(), [
       { from: 'f2', to: 'f3' },
       { from: 'e7', to: 'e5' },
@@ -301,6 +350,13 @@ describe('ChessBoardStage', () => {
         { square: 'h8', color: 'black', type: 'king' },
       ],
       turn: 'black',
+    })
+    const drawGame = createChessGame({
+      pieces: [
+        { square: 'e1', color: 'white', type: 'king' },
+        { square: 'e8', color: 'black', type: 'king' },
+      ],
+      halfmoveClock: 100,
     })
 
     const { rerender } = render(<ChessBoardStage initialGame={checkmateGame} />)
@@ -323,6 +379,18 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByText(
         'Black has no legal moves, and neither king is in check.',
+      ),
+    ).toBeInTheDocument()
+
+    rerender(<ChessBoardStage initialGame={drawGame} />)
+
+    expect(
+      screen.getByRole('heading', { name: 'White to move' }),
+    ).toBeInTheDocument()
+    expect(within(screen.getByRole('list')).getByText('Draw')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'The game is drawn by the fifty-move rule after 50 quiet moves by each side.',
       ),
     ).toBeInTheDocument()
   })

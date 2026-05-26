@@ -5,11 +5,13 @@ import {
   applyLegalMoveState,
   applySearchMove,
   createChessPositionKey,
+  resolveChessPositionSnapshot,
   createSearchPosition,
   createChessGame,
   generateLegalMoves,
   generateSearchLegalMoves,
   generateSearchLegalMovesFromPosition,
+  hasLegalMoves,
   getPieceAtSquare,
   isInCheck,
   isSearchPositionInCheck,
@@ -271,6 +273,112 @@ describe('checks and terminal states', () => {
     expect(isInCheck(game, 'black')).toBe(false)
     expect(generateLegalMoves(game)).toHaveLength(0)
   })
+
+  it('detects a draw when the fifty-move clock reaches the automatic draw threshold', () => {
+    const game = createCustomGame(
+      [
+        { square: 'e1', color: 'white', type: 'king' },
+        { square: 'e8', color: 'black', type: 'king' },
+      ],
+      {
+        turn: 'white',
+        halfmoveClock: 100,
+      },
+    )
+
+    expect(game.status).toBe('draw')
+    expect(game.winner).toBeNull()
+    expect(isInCheck(game, 'white')).toBe(false)
+    expect(generateLegalMoves(game)).toEqual([])
+    expect(() => makeMove(game, { from: 'e1', to: 'e2' })).toThrow(
+      /illegal move/i,
+    )
+    expect(hasLegalMoves(game)).toBe(false)
+  })
+
+  it('keeps the automatic draw classification even when the side to move also has no legal moves', () => {
+    const game = createCustomGame(
+      [
+        { square: 'f7', color: 'white', type: 'king' },
+        { square: 'g6', color: 'white', type: 'queen' },
+        { square: 'h8', color: 'black', type: 'king' },
+      ],
+      {
+        turn: 'black',
+        halfmoveClock: 100,
+      },
+    )
+
+    expect(game.status).toBe('draw')
+    expect(game.checkedColor).toBeNull()
+    expect(game.winner).toBeNull()
+    expect(generateLegalMoves(game)).toEqual([])
+    expect(hasLegalMoves(game)).toBe(false)
+  })
+
+  it('derives legal-move availability from the board state instead of status metadata', () => {
+    const playableAiTurn = makeMove(createChessGame(), {
+      from: 'e2',
+      to: 'e4',
+    })
+    const staleDrawGame: ChessGameState = {
+      ...playableAiTurn,
+      status: 'draw',
+      checkedColor: null,
+      winner: null,
+    }
+    const checkmateGame = playMoves(createChessGame(), [
+      { from: 'f2', to: 'f3' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g2', to: 'g4' },
+      { from: 'd8', to: 'h4' },
+    ])
+    const staleActiveCheckmate: ChessGameState = {
+      ...checkmateGame,
+      status: 'active',
+      checkedColor: null,
+      winner: null,
+    }
+
+    expect(hasLegalMoves(staleDrawGame)).toBe(true)
+    expect(hasLegalMoves(staleActiveCheckmate)).toBe(false)
+  })
+
+  it('recomputes terminal status from the board state when position metadata is stale', () => {
+    const playableAiTurn = makeMove(createChessGame(), {
+      from: 'e2',
+      to: 'e4',
+    })
+    const staleDrawGame: ChessGameState = {
+      ...playableAiTurn,
+      status: 'draw',
+      checkedColor: 'black',
+      winner: null,
+    }
+    const checkmateGame = playMoves(createChessGame(), [
+      { from: 'f2', to: 'f3' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g2', to: 'g4' },
+      { from: 'd8', to: 'h4' },
+    ])
+    const staleActiveCheckmate: ChessGameState = {
+      ...checkmateGame,
+      status: 'active',
+      checkedColor: null,
+      winner: null,
+    }
+
+    expect(resolveChessPositionSnapshot(staleDrawGame)).toMatchObject({
+      status: 'active',
+      checkedColor: null,
+      winner: null,
+    })
+    expect(resolveChessPositionSnapshot(staleActiveCheckmate)).toMatchObject({
+      status: 'checkmate',
+      checkedColor: 'white',
+      winner: 'black',
+    })
+  })
 })
 
 describe('applyLegalMoveState', () => {
@@ -309,6 +417,24 @@ describe('generateSearchLegalMoves', () => {
     expect(moveKeys(generateSearchLegalMoves(game))).toEqual(
       moveKeys(generateLegalMoves(game)),
     )
+  })
+
+  it('treats drawn positions as terminal in the search move generator', () => {
+    const game = createCustomGame(
+      [
+        { square: 'e1', color: 'white', type: 'king' },
+        { square: 'e8', color: 'black', type: 'king' },
+      ],
+      {
+        turn: 'white',
+        halfmoveClock: 100,
+      },
+    )
+
+    expect(generateSearchLegalMoves(game)).toEqual([])
+    expect(
+      generateSearchLegalMovesFromPosition(createSearchPosition(game)),
+    ).toEqual([])
   })
 })
 

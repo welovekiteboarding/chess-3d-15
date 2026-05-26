@@ -39,6 +39,53 @@ describe('isChessAiControlledTurn', () => {
 
     expect(isChessAiControlledTurn(settings, stalemate)).toBe(false)
   })
+
+  it('derives AI turn ownership from the board position when status metadata is stale', () => {
+    const settings = createChessAiMatchSettings({
+      mode: 'human-vs-ai',
+    })
+    const playableAiTurn = makeMove(createChessGame(), {
+      from: 'e2',
+      to: 'e4',
+    })
+    const staleDrawGame = {
+      ...playableAiTurn,
+      status: 'draw' as const,
+      checkedColor: null,
+      winner: null,
+    }
+    const checkmate = makeMove(
+      makeMove(
+        makeMove(
+          makeMove(createChessGame(), {
+            from: 'f2',
+            to: 'f3',
+          }),
+          {
+            from: 'e7',
+            to: 'e5',
+          },
+        ),
+        {
+          from: 'g2',
+          to: 'g4',
+        },
+      ),
+      {
+        from: 'd8',
+        to: 'h4',
+      },
+    )
+    const staleActiveCheckmate = {
+      ...checkmate,
+      status: 'active' as const,
+      checkedColor: null,
+      winner: null,
+    }
+
+    expect(isChessAiControlledTurn(settings, staleDrawGame)).toBe(true)
+    expect(isChessAiControlledTurn(settings, staleActiveCheckmate)).toBe(false)
+  })
 })
 
 describe('createChessAiRandomSeed', () => {

@@ -97,6 +97,13 @@ export function describeChessSceneStatus(
         statusLabel: 'Stalemate',
         statusDetail: `${activeColorLabel} has no legal moves, and neither king is in check.`,
       }
+    case 'draw':
+      return {
+        turnLabel: `${activeColorLabel} to move`,
+        statusLabel: 'Draw',
+        statusDetail:
+          'The game is drawn by the fifty-move rule after 50 quiet moves by each side.',
+      }
     case 'active':
       return {
         turnLabel: `${activeColorLabel} to move`,
