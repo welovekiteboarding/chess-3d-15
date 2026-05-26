@@ -26,6 +26,40 @@ function createMemoryStorage(): StorageLike {
 }
 
 describe('ChessHintControls', () => {
+  it('tracks autosave state from a persisted binding without requiring a separate persistence prop', () => {
+    const binding = createPersistedChessSceneBinding({
+      persistence: createChessGamePersistence({
+        storage: createMemoryStorage(),
+      }),
+    })
+
+    render(<ChessHintControls binding={binding} />)
+
+    const clearSavedGameButton = screen.getByRole('button', {
+      name: 'Clear saved game',
+    })
+
+    expect(clearSavedGameButton).toBeDisabled()
+
+    act(() => {
+      binding.move({ from: 'e2', to: 'e4' })
+    })
+
+    expect(
+      screen.getByText(/Saved locally after 1 move: e2 -> e4\./i),
+    ).toBeInTheDocument()
+    expect(clearSavedGameButton).toBeEnabled()
+
+    fireEvent.click(clearSavedGameButton)
+
+    expect(
+      screen.getByText(
+        /No saved game is stored yet\. Your first move will create a local save on this device\./i,
+      ),
+    ).toBeInTheDocument()
+    expect(clearSavedGameButton).toBeDisabled()
+  })
+
   it('replaces a visible hint after the board changes and keeps dismissed hints hidden', () => {
     const persistence = createChessGamePersistence({
       storage: createMemoryStorage(),

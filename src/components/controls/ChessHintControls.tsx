@@ -6,10 +6,7 @@ import {
   showChessHintState,
   syncChessHintState,
 } from '../../ai/hint'
-import {
-  createChessGamePersistence,
-  type ChessGamePersistence,
-} from '../../chess/persistence'
+import type { ChessGamePersistence } from '../../chess/persistence'
 import type { ChessSceneBinding } from '../../types/chess'
 import { ChessPersistenceControls } from './ChessPersistenceControls'
 
@@ -27,9 +24,6 @@ export function ChessHintControls({
 }: ChessHintControlsProps) {
   const [snapshot, setSnapshot] = useState(() => binding.getSnapshot())
   const [hintState, setHintState] = useState(() => createChessHintState())
-  const [resolvedPersistence] = useState<ChessGamePersistence>(() =>
-    persistence ?? createChessGamePersistence(),
-  )
 
   useEffect(() => {
     setSnapshot(binding.getSnapshot())
@@ -70,10 +64,7 @@ export function ChessHintControls({
 
   return (
     <>
-      <ChessPersistenceControls
-        binding={binding}
-        persistence={resolvedPersistence}
-      />
+      <ChessPersistenceControls binding={binding} persistence={persistence} />
       <section
         aria-labelledby="hint-controls-title"
         className="board-stage__feedback"
