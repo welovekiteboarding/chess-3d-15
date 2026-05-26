@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clearStoredJsonValue,
   loadStoredJsonValue,
+  resolveBrowserStorage,
   saveStoredJsonValue,
   type StorageLike,
 } from './browserStorage'
@@ -59,5 +60,24 @@ describe('browserStorage', () => {
     clearStoredJsonValue(storage, 'current-game')
 
     expect(storage.getItem('current-game')).toBeNull()
+  })
+
+  it('returns null when the browser localStorage getter throws', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('localStorage is unavailable')
+      },
+    })
+
+    try {
+      expect(resolveBrowserStorage(undefined)).toBeNull()
+    } finally {
+      if (descriptor !== undefined) {
+        Object.defineProperty(window, 'localStorage', descriptor)
+      }
+    }
   })
 })

@@ -91,9 +91,9 @@ export function createChessGamePersistence(
         return null
       }
 
-      const rawValue = storage.getItem(storageKey)
+      const rawValue = safelyGetStoredValue(storage, storageKey)
 
-      if (rawValue === null) {
+      if (rawValue === null || rawValue === undefined) {
         return null
       }
 
@@ -107,15 +107,19 @@ export function createChessGamePersistence(
         // Clear malformed payloads so future loads start clean.
       }
 
-      clearStoredJsonValue(storage, storageKey)
+      safelyClearStoredJsonValue(storage, storageKey)
 
       return null
     },
     save(game) {
-      saveStoredJsonValue(storage, storageKey, createPersistedChessGame(game))
+      safelySaveStoredJsonValue(
+        storage,
+        storageKey,
+        createPersistedChessGame(game),
+      )
     },
     clear() {
-      clearStoredJsonValue(storage, storageKey)
+      safelyClearStoredJsonValue(storage, storageKey)
     },
   }
 }
@@ -127,7 +131,7 @@ export function createPersistedChessSceneBinding(
   const startingGame = cloneChessGameState(
     options.initialGame ?? createChessGame(),
   )
-  const restoredGame = persistence.load()
+  const restoredGame = safelyLoadPersistedGame(persistence)
   const listeners = new Set<ChessSceneListener>()
   let activeBinding = createChessSceneBinding(restoredGame ?? startingGame)
   let unsubscribeFromActiveBinding = subscribeToPersistedBinding(
@@ -154,7 +158,7 @@ export function createPersistedChessSceneBinding(
     },
     restart() {
       unsubscribeFromActiveBinding()
-      persistence.clear()
+      safelyClearPersistedGame(persistence)
       activeBinding = createChessSceneBinding(startingGame)
       unsubscribeFromActiveBinding = subscribeToPersistedBinding(
         activeBinding,
@@ -191,12 +195,42 @@ function subscribeToPersistedBinding(
 
   return binding.subscribe((snapshot) => {
     if (!isFirstSnapshot || options.persistInitialSnapshot === true) {
-      persistence.save(binding.getGame())
+      safelySavePersistedGame(persistence, binding.getGame())
     }
 
     isFirstSnapshot = false
     notifyChessSceneListeners(listeners, snapshot)
   })
+}
+
+function safelyLoadPersistedGame(
+  persistence: ChessGamePersistence,
+): ChessGameState | null {
+  try {
+    return persistence.load()
+  } catch {
+    safelyClearPersistedGame(persistence)
+    return null
+  }
+}
+
+function safelySavePersistedGame(
+  persistence: ChessGamePersistence,
+  game: ChessGameState,
+): void {
+  try {
+    persistence.save(game)
+  } catch {
+    // Persistence should never break gameplay.
+  }
+}
+
+function safelyClearPersistedGame(persistence: ChessGamePersistence): void {
+  try {
+    persistence.clear()
+  } catch {
+    // Ignore storage cleanup failures and keep the in-memory game available.
+  }
 }
 
 function notifyChessSceneListeners(
@@ -574,6 +608,40 @@ function readInteger(value: unknown, minimum: number): number | null {
 
 function readBoolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null
+}
+
+function safelyGetStoredValue(
+  storage: StorageLike,
+  key: string,
+): string | null | undefined {
+  try {
+    return storage.getItem(key)
+  } catch {
+    return undefined
+  }
+}
+
+function safelySaveStoredJsonValue(
+  storage: StorageLike | null | undefined,
+  key: string,
+  value: unknown,
+): void {
+  try {
+    saveStoredJsonValue(storage, key, value)
+  } catch {
+    // Ignore storage write failures and keep the app responsive.
+  }
+}
+
+function safelyClearStoredJsonValue(
+  storage: StorageLike | null | undefined,
+  key: string,
+): void {
+  try {
+    clearStoredJsonValue(storage, key)
+  } catch {
+    // Ignore storage cleanup failures. Future loads will still fall back safely.
+  }
 }
 
 function readOneOf<T extends string>(
