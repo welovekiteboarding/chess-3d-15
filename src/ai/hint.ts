@@ -1,6 +1,12 @@
+import { generateLegalMoves } from '../chess/engine'
 import { selectAiMove } from '../domain/ai'
 import type { AiDifficulty } from '../types/ai'
-import type { ChessGameState, ChessSquare, PromotionPieceType } from '../types/chess'
+import type {
+  ChessGameState,
+  ChessSquare,
+  LegalMove,
+  PromotionPieceType,
+} from '../types/chess'
 
 export interface ChessHint {
   from: ChessSquare
@@ -19,10 +25,9 @@ export const DEFAULT_HINT_DIFFICULTY: AiDifficulty = 'hard'
 export function requestChessHint(
   request: ChessHintRequest,
 ): ChessHint | null {
-  if (
-    request.game.status === 'checkmate' ||
-    request.game.status === 'stalemate'
-  ) {
+  const legalMoves = generateLegalMoves(request.game)
+
+  if (legalMoves.length === 0) {
     return null
   }
 
@@ -31,10 +36,23 @@ export function requestChessHint(
     difficulty: request.difficulty ?? DEFAULT_HINT_DIFFICULTY,
     random: request.random ?? (() => 0),
   })
+  const legalMove = legalMoves.find((candidate) => isSameMove(candidate, move))
+
+  if (legalMove === undefined) {
+    return null
+  }
 
   return {
-    from: move.from,
-    to: move.to,
-    promotion: move.promotion,
+    from: legalMove.from,
+    to: legalMove.to,
+    promotion: legalMove.promotion,
   }
+}
+
+function isSameMove(left: LegalMove, right: LegalMove): boolean {
+  return (
+    left.from === right.from &&
+    left.to === right.to &&
+    left.promotion === right.promotion
+  )
 }
