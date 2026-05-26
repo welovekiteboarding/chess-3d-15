@@ -73,6 +73,70 @@ describe('createChessSceneBinding', () => {
     expect(updateListener).toHaveBeenCalledWith(nextSnapshot)
   })
 
+  it('removes captured pieces from the scene snapshot', () => {
+    const binding = createChessSceneBinding()
+
+    binding.move({ from: 'e2', to: 'e4' })
+    binding.move({ from: 'd7', to: 'd5' })
+
+    const nextSnapshot = binding.move({ from: 'e4', to: 'd5' })
+
+    expect(nextSnapshot.pieces).toHaveLength(31)
+    expect(
+      nextSnapshot.pieces.find(
+        (piece) =>
+          piece.square === 'd5' &&
+          piece.color === 'white' &&
+          piece.type === 'pawn',
+      ),
+    ).toBeDefined()
+    expect(
+      nextSnapshot.pieces.find(
+        (piece) => piece.square === 'e4' && piece.color === 'white',
+      ),
+    ).toBeUndefined()
+    expect(
+      nextSnapshot.pieces.find(
+        (piece) => piece.square === 'd5' && piece.color === 'black',
+      ),
+    ).toBeUndefined()
+  })
+
+  it('updates the scene snapshot piece type after promotion', () => {
+    const binding = createChessSceneBinding(
+      createChessGame({
+        pieces: [
+          { square: 'e1', color: 'white', type: 'king' },
+          { square: 'e8', color: 'black', type: 'king' },
+          { square: 'g7', color: 'white', type: 'pawn' },
+        ],
+      }),
+    )
+
+    const nextSnapshot = binding.move({
+      from: 'g7',
+      to: 'g8',
+      promotion: 'queen',
+    })
+
+    expect(
+      nextSnapshot.pieces.find((piece) => piece.square === 'g7'),
+    ).toBeUndefined()
+    expect(
+      nextSnapshot.pieces.find(
+        (piece) =>
+          piece.square === 'g8' &&
+          piece.color === 'white' &&
+          piece.type === 'queen',
+      ),
+    ).toBeDefined()
+    expect(nextSnapshot.lastMove).toEqual({
+      from: 'g7',
+      to: 'g8',
+      promotion: 'queen',
+    })
+  })
+
   it('does not notify subscribers when a move is illegal', () => {
     const binding = createChessSceneBinding()
     const updateListener = vi.fn()
