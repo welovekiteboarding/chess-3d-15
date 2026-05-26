@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createChessGame, makeMove } from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
@@ -23,12 +23,29 @@ describe('ChessBoardStage', () => {
   it('renders the current turn and engine-backed starting snapshot', () => {
     render(<ChessBoardStage />)
 
+    const notes = screen.getByRole('list')
+
     expect(
       screen.getByRole('heading', { name: 'White to move' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Game in progress')).toBeInTheDocument()
+    expect(screen.getByText('White controls the next move.')).toBeInTheDocument()
     expect(screen.getByTestId('scene-piece-count')).toHaveTextContent(
       '32 scene pieces',
+    )
+    expect(within(notes).getByText('Game in progress')).toBeInTheDocument()
+    expect(within(notes).getByText('Opening position')).toBeInTheDocument()
+  })
+
+  it('surfaces the current integration issue metadata in the live board rail', () => {
+    render(<ChessBoardStage />)
+
+    expect(screen.getByText('Issue C31-24')).toBeInTheDocument()
+    expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
+      'chess-004d',
+    )
+    expect(screen.getByText('Issue C31-24').closest('aside')).toHaveAttribute(
+      'aria-live',
+      'polite',
     )
   })
 
@@ -44,13 +61,18 @@ describe('ChessBoardStage', () => {
 
     render(<ChessBoardStage initialGame={checkedGame} />)
 
+    const notes = screen.getByRole('list')
+
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Black is in check')).toBeInTheDocument()
+    expect(
+      screen.getByText('Black must answer the threat on this turn.'),
+    ).toBeInTheDocument()
     expect(screen.getByTestId('scene-piece-count')).toHaveTextContent(
       '3 scene pieces',
     )
+    expect(within(notes).getByText('Black is in check')).toBeInTheDocument()
   })
 
   it('renders checkmate and stalemate states from engine state', () => {
@@ -71,7 +93,9 @@ describe('ChessBoardStage', () => {
 
     const { rerender } = render(<ChessBoardStage initialGame={checkmateGame} />)
 
-    expect(screen.getByText('Checkmate')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list')).getByText('Checkmate'),
+    ).toBeInTheDocument()
     expect(
       screen.getByText('Black wins. White has no legal move to escape check.'),
     ).toBeInTheDocument()
@@ -81,7 +105,9 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Stalemate')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list')).getByText('Stalemate'),
+    ).toBeInTheDocument()
     expect(
       screen.getByText(
         'Black has no legal moves, and neither king is in check.',
@@ -104,11 +130,38 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'White to move' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Checkmate')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list')).getByText('Checkmate'),
+    ).toBeInTheDocument()
     expect(
       screen.getByText('Black wins. White has no legal move to escape check.'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Move history live')).toBeInTheDocument()
-    expect(screen.getByText('d8 -> h4')).toBeInTheDocument()
+    expect(screen.getByText('Last move: d8 -> h4')).toBeInTheDocument()
+  })
+
+  it('surfaces promotion moves in the board-stage runtime chips', () => {
+    const binding = createChessSceneBinding(
+      createChessGame({
+        pieces: [
+          { square: 'e1', color: 'white', type: 'king' },
+          { square: 'e8', color: 'black', type: 'king' },
+          { square: 'g7', color: 'white', type: 'pawn' },
+        ],
+      }),
+    )
+
+    render(<ChessBoardStage binding={binding} />)
+
+    act(() => {
+      binding.move({
+        from: 'g7',
+        to: 'g8',
+        promotion: 'queen',
+      })
+    })
+
+    expect(
+      screen.getByText('Last move: g7 -> g8 = queen'),
+    ).toBeInTheDocument()
   })
 })

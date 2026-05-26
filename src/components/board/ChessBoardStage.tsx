@@ -5,10 +5,16 @@ import {
 } from '../../domain/chessScene'
 import { ChessScene } from '../../scene/ChessScene'
 import { squareToScenePosition } from '../../scene/boardCoordinates'
-import type { ChessGameState, ChessSceneBinding } from '../../types/chess'
+import type {
+  ChessGameState,
+  ChessSceneBinding,
+  ChessSceneLastMove,
+} from '../../types/chess'
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
+const LINEAR_ISSUE_ID = 'C31-24'
+const GRAPH_TASK_ID = 'chess-004d'
 
 interface ChessBoardStageProps {
   initialGame?: ChessGameState
@@ -37,13 +43,9 @@ export function ChessBoardStage({
     () => describeChessSceneStatus(snapshot),
     [snapshot],
   )
-  const lastMoveLabel = snapshot.lastMove
-    ? `${snapshot.lastMove.from} -> ${snapshot.lastMove.to}${
-        snapshot.lastMove.promotion === null
-          ? ''
-          : ` = ${snapshot.lastMove.promotion}`
-      }`
-    : 'Opening setup'
+  const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
+  const moveChipLabel =
+    snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
 
   return (
     <section className="board-stage" aria-labelledby="board-stage-title">
@@ -52,26 +54,36 @@ export function ChessBoardStage({
         <ChessScene pieces={snapshot.pieces} />
       </div>
 
-      <aside className="board-stage__rail">
+      <aside
+        aria-atomic="true"
+        aria-live="polite"
+        className="board-stage__rail"
+      >
         <div>
-          <p className="eyebrow">Issue C31-23</p>
+          <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
           <h2 id="board-stage-title">{turnLabel}</h2>
           <p className="body-copy">{statusDetail}</p>
         </div>
 
         <div className="board-stage__notes" role="list">
           <span className="board-chip" role="listitem">
-            Engine binding live
+            {statusLabel}
           </span>
           <span className="board-chip" role="listitem">
             {`${snapshot.pieces.length} scene pieces`}
           </span>
           <span className="board-chip" role="listitem">
-            {snapshot.lastMove === null ? 'Opening position' : 'Move history live'}
+            {moveChipLabel}
           </span>
         </div>
 
         <dl className="board-stage__meta">
+          <div className="board-stage__fact">
+            <dt>Graph task</dt>
+            <dd>
+              <code>{GRAPH_TASK_ID}</code>
+            </dd>
+          </div>
           <div className="board-stage__fact">
             <dt>Status</dt>
             <dd>{statusLabel}</dd>
@@ -93,11 +105,21 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          The board view now subscribes to the chess engine binding, so turn,
-          check, checkmate, and stalemate states stay in sync with the rendered
-          3D position.
+          Graph task <code>{GRAPH_TASK_ID}</code> wires the engine binding into
+          the live 3D board surface so turn, status, and move history stay in
+          sync with the rendered position.
         </p>
       </aside>
     </section>
   )
+}
+
+function formatLastMoveLabel(lastMove: ChessSceneLastMove | null): string {
+  if (lastMove === null) {
+    return 'Opening setup'
+  }
+
+  return `${lastMove.from} -> ${lastMove.to}${
+    lastMove.promotion === null ? '' : ` = ${lastMove.promotion}`
+  }`
 }
