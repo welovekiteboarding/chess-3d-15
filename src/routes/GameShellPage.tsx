@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { createPersistedChessSceneBinding } from '../chess/persistence'
 import { ChessBoardStage } from '../components/board/ChessBoardStage'
 import { ChessHintControls } from '../components/controls/ChessHintControls'
-import { createChessSceneBinding } from '../domain/chessScene'
 
 export function GameShellPage() {
-  const [sceneBinding] = useState(() => createChessSceneBinding())
+  const [sceneBinding] = useState(() => createPersistedChessSceneBinding())
 
   return (
     <section className="game-shell-page">
