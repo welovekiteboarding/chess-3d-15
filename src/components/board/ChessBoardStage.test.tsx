@@ -155,13 +155,45 @@ describe('ChessBoardStage', () => {
     render(<ChessBoardStage />)
 
     expect(screen.getAllByText('Issue C31-39')).toHaveLength(2)
+    expect(screen.getByText('Issue C31-40')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
       'chess-009c',
     )
+    expect(
+      screen.getByText(
+        /Graph task chess-009d wires the reusable move history surface into the live game controls/i,
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'White to move' }).closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
+  })
+
+  it('wires the reusable move-history surface into the live board rail', () => {
+    const binding = createChessSceneBinding()
+
+    render(<ChessBoardStage binding={binding} />)
+
+    act(() => {
+      binding.move({ from: 'e2', to: 'e4' })
+      binding.move({ from: 'd7', to: 'd5' })
+      binding.move({ from: 'e4', to: 'd5' })
+    })
+
+    const moveHistory = screen.getByRole('list', { name: 'Move history' })
+
+    expect(
+      within(moveHistory).getByText('1. White: Pawn e2 to e4'),
+    ).toBeInTheDocument()
+    expect(
+      within(moveHistory).getByText('2. Black: Pawn d7 to d5'),
+    ).toBeInTheDocument()
+    expect(
+      within(moveHistory).getByText('3. White: Pawn e4 captures d5'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('White captured')).toBeInTheDocument()
+    expect(screen.getByText('Pawn')).toBeInTheDocument()
   })
 
   it('lets the user choose human-vs-ai mode and difficulty through the board rail', () => {
