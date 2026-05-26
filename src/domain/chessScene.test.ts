@@ -231,6 +231,25 @@ describe('createChessSceneBinding', () => {
     expect(binding.getGame().history).toHaveLength(0)
   })
 
+  it('supports resigning and restarting through the shared scene binding', () => {
+    const binding = createChessSceneBinding()
+
+    binding.move({ from: 'e2', to: 'e4' })
+
+    const resignedSnapshot = binding.resign('white')
+
+    expect(resignedSnapshot.status).toBe('resigned')
+    expect(resignedSnapshot.winner).toBe('black')
+    expect(binding.getGame().history).toHaveLength(1)
+
+    const restartedSnapshot = binding.restart()
+
+    expect(restartedSnapshot.status).toBe('active')
+    expect(restartedSnapshot.lastMove).toBeNull()
+    expect(binding.getGame().history).toHaveLength(0)
+    expect(binding.getGame().turn).toBe('white')
+  })
+
   it('returns cloned game data so external callers cannot mutate binding state', () => {
     const binding = createChessSceneBinding()
     const exposedGame = binding.getGame()
@@ -339,6 +358,18 @@ describe('describeChessSceneStatus', () => {
       turnLabel: 'Black to move',
       statusLabel: 'Black is in check',
       statusDetail: 'Black must answer the threat on this turn.',
+    })
+    expect(
+      describeChessSceneStatus({
+        turn: 'black',
+        status: 'resigned',
+        checkedColor: null,
+        winner: 'black',
+      }),
+    ).toEqual({
+      turnLabel: 'Game ended',
+      statusLabel: 'Resignation',
+      statusDetail: 'Black wins by resignation.',
     })
   })
 

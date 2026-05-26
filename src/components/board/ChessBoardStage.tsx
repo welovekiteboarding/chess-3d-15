@@ -2,14 +2,18 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   createChessAiMatchSettings,
   describeChessAiMatchSettings,
+  isHumanVsAiMode,
   type ChessAiMatchSettings,
 } from '../../ai/gameMode'
 import {
+  DEFAULT_CHESS_AI_COLOR,
   createChessAiMoveClient,
   createChessAiRandomSeed,
   isChessAiControlledTurn,
   type ChessAiMoveClient,
 } from '../../ai/liveMatch'
+import { isChessGameTerminalStatus } from '../../chess/gameControls'
+import { oppositeColor } from '../../domain/chessboard'
 import { createChessPositionKey, getPieceAtSquare } from '../../chess/engine'
 import {
   type ChessAnimatedPieceMotion,
@@ -38,6 +42,7 @@ import {
   syncChessInteractionState,
 } from '../../state/chessInteraction'
 import { ChessAiMatchControls } from './ChessAiMatchControls'
+import { ChessGameControls } from './ChessGameControls'
 import type {
   ChessGameState,
   ChessSceneBinding,
@@ -47,8 +52,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-35'
-const GRAPH_TASK_ID = 'chess-007c'
+const LINEAR_ISSUE_ID = 'C31-37'
+const GRAPH_TASK_ID = 'chess-009a'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -304,6 +309,10 @@ export function ChessBoardStage({
   ) {
     const game = sceneBinding.getGame()
 
+    if (isChessGameTerminalStatus(game.status)) {
+      return
+    }
+
     if (
       isAiThinking ||
       isChessAiControlledTurn(resolvedAiMatchSettings, game)
@@ -366,6 +375,26 @@ export function ChessBoardStage({
     }
 
     setInteractionFeedbackTone('invalid')
+  }
+
+  function handleRestart() {
+    resetSquareSelectDeduplication()
+    sceneBinding.restart()
+  }
+
+  function handleResign() {
+    const game = sceneBinding.getGame()
+    const resignedColor = isHumanVsAiMode(resolvedAiMatchSettings)
+      ? oppositeColor(DEFAULT_CHESS_AI_COLOR)
+      : game.turn
+
+    resetSquareSelectDeduplication()
+    sceneBinding.resign(resignedColor)
+  }
+
+  function resetSquareSelectDeduplication() {
+    previousSquareSelectRef.current = null
+    relativeEventTimestampOffsetRef.current = null
   }
 
   return (
@@ -457,9 +486,9 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> locks the board while the AI
-          is evaluating and keeps terminal human, AI, stalemate, and draw
-          outcomes aligned with engine state.
+          Graph task <code>{GRAPH_TASK_ID}</code> adds restart and resignation
+          controls on top of the shared live scene binding without breaking AI
+          turns or existing board interactions.
         </p>
 
         <ChessAiMatchControls
@@ -467,6 +496,12 @@ export function ChessBoardStage({
           isThinking={isAiThinking}
           onChange={handleAiMatchSettingsChange}
           value={resolvedAiMatchSettings}
+        />
+
+        <ChessGameControls
+          game={currentGame}
+          onRestart={handleRestart}
+          onResign={handleResign}
         />
 
         <div
