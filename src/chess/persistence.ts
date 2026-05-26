@@ -1,7 +1,6 @@
 import { createChessSceneBinding } from '../domain/chessScene'
 import {
   clearStoredJsonValue,
-  loadStoredJsonValue,
   resolveBrowserStorage,
   saveStoredJsonValue,
   type StorageLike,
@@ -51,6 +50,10 @@ export interface CreatePersistedChessSceneBindingOptions {
   persistence?: ChessGamePersistence
 }
 
+interface PersistedBindingSubscriptionOptions {
+  persistInitialSnapshot?: boolean
+}
+
 const PIECE_COLORS: PieceColor[] = ['white', 'black']
 const PIECE_TYPES: PieceType[] = [
   'king',
@@ -84,7 +87,29 @@ export function createChessGamePersistence(
 
   return {
     load() {
-      return loadStoredJsonValue(storage, storageKey, readPersistedChessGame)
+      if (storage === null) {
+        return null
+      }
+
+      const rawValue = storage.getItem(storageKey)
+
+      if (rawValue === null) {
+        return null
+      }
+
+      try {
+        const game = readPersistedChessGame(JSON.parse(rawValue))
+
+        if (game !== null) {
+          return game
+        }
+      } catch {
+        // Clear malformed payloads so future loads start clean.
+      }
+
+      clearStoredJsonValue(storage, storageKey)
+
+      return null
     },
     save(game) {
       saveStoredJsonValue(storage, storageKey, createPersistedChessGame(game))
@@ -109,6 +134,9 @@ export function createPersistedChessSceneBinding(
     activeBinding,
     listeners,
     persistence,
+    {
+      persistInitialSnapshot: restoredGame !== null,
+    },
   )
 
   return {
@@ -126,11 +154,15 @@ export function createPersistedChessSceneBinding(
     },
     restart() {
       unsubscribeFromActiveBinding()
+      persistence.clear()
       activeBinding = createChessSceneBinding(startingGame)
       unsubscribeFromActiveBinding = subscribeToPersistedBinding(
         activeBinding,
         listeners,
         persistence,
+        {
+          persistInitialSnapshot: false,
+        },
       )
 
       return activeBinding.getSnapshot()
@@ -153,9 +185,16 @@ function subscribeToPersistedBinding(
   binding: ChessSceneBinding,
   listeners: Set<ChessSceneListener>,
   persistence: ChessGamePersistence,
+  options: PersistedBindingSubscriptionOptions = {},
 ): () => void {
+  let isFirstSnapshot = true
+
   return binding.subscribe((snapshot) => {
-    persistence.save(binding.getGame())
+    if (!isFirstSnapshot || options.persistInitialSnapshot === true) {
+      persistence.save(binding.getGame())
+    }
+
+    isFirstSnapshot = false
     notifyChessSceneListeners(listeners, snapshot)
   })
 }
