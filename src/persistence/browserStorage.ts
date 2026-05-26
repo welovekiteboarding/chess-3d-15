@@ -66,5 +66,9 @@ function resolveWindowLocalStorage(): StorageLike | null {
     return null
   }
 
-  return window.localStorage
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
 }

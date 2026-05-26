@@ -5,6 +5,7 @@ import { createChessGame } from './engine'
 import {
   CHESS_LOCAL_GAME_PERSISTENCE_VERSION,
   CHESS_LOCAL_GAME_STORAGE_KEY,
+  type ChessGamePersistence,
   createChessGamePersistence,
   createPersistedChessSceneBinding,
 } from './persistence'
@@ -73,6 +74,46 @@ describe('createChessGamePersistence', () => {
 
     expect(persistence.load()).toBeNull()
     expect(storage.getItem(CHESS_LOCAL_GAME_STORAGE_KEY)).toBeNull()
+  })
+
+  it('returns null and clears saved data when the stored game snapshot is corrupt', () => {
+    const storage = createMemoryStorage()
+    const persistence = createChessGamePersistence({ storage })
+
+    storage.setItem(
+      CHESS_LOCAL_GAME_STORAGE_KEY,
+      JSON.stringify({
+        version: CHESS_LOCAL_GAME_PERSISTENCE_VERSION,
+        game: {
+          ...createChessGame(),
+          pieces: [
+            {
+              square: 'e1',
+              color: 'white',
+              type: 'king',
+            },
+          ],
+        },
+      }),
+    )
+
+    expect(persistence.load()).toBeNull()
+    expect(storage.getItem(CHESS_LOCAL_GAME_STORAGE_KEY)).toBeNull()
+  })
+
+  it('returns null when storage throws while reading a saved game', () => {
+    const storage: StorageLike = {
+      getItem() {
+        throw new Error('Storage read failed')
+      },
+      setItem() {},
+      removeItem() {
+        throw new Error('Storage clear failed')
+      },
+    }
+    const persistence = createChessGamePersistence({ storage })
+
+    expect(persistence.load()).toBeNull()
   })
 })
 
@@ -161,5 +202,41 @@ describe('createPersistedChessSceneBinding', () => {
     expect(
       restartedGame.pieces.find((piece) => piece.square === 'e5'),
     ).toBeUndefined()
+  })
+
+  it('falls back to a fresh game when persistence load throws', () => {
+    const persistence: ChessGamePersistence = {
+      load() {
+        throw new Error('Stored game is unreadable')
+      },
+      save() {},
+      clear() {},
+    }
+
+    expect(() =>
+      createPersistedChessSceneBinding({ persistence }),
+    ).not.toThrow()
+
+    const binding = createPersistedChessSceneBinding({ persistence })
+    const game = binding.getGame()
+
+    expect(game.turn).toBe('white')
+    expect(game.history).toHaveLength(0)
+    expect(
+      game.pieces.find(
+        (piece) =>
+          piece.square === 'e1' &&
+          piece.color === 'white' &&
+          piece.type === 'king',
+      ),
+    ).toBeDefined()
+    expect(
+      game.pieces.find(
+        (piece) =>
+          piece.square === 'e8' &&
+          piece.color === 'black' &&
+          piece.type === 'king',
+      ),
+    ).toBeDefined()
   })
 })
