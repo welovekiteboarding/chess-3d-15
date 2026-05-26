@@ -9,6 +9,8 @@ import type { ChessGameState, ChessSceneBinding } from '../../types/chess'
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
+const LINEAR_ISSUE_ID = 'C31-24'
+const GRAPH_TASK_ID = 'chess-004d'
 
 interface ChessBoardStageProps {
   initialGame?: ChessGameState
@@ -52,9 +54,13 @@ export function ChessBoardStage({
         <ChessScene pieces={snapshot.pieces} />
       </div>
 
-      <aside className="board-stage__rail">
+      <aside
+        aria-atomic="true"
+        aria-live="polite"
+        className="board-stage__rail"
+      >
         <div>
-          <p className="eyebrow">Issue C31-23</p>
+          <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
           <h2 id="board-stage-title">{turnLabel}</h2>
           <p className="body-copy">{statusDetail}</p>
         </div>
@@ -72,6 +78,12 @@ export function ChessBoardStage({
         </div>
 
         <dl className="board-stage__meta">
+          <div className="board-stage__fact">
+            <dt>Graph task</dt>
+            <dd>
+              <code>{GRAPH_TASK_ID}</code>
+            </dd>
+          </div>
           <div className="board-stage__fact">
             <dt>Status</dt>
             <dd>{statusLabel}</dd>
@@ -93,9 +105,9 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          The board view now subscribes to the chess engine binding, so turn,
-          check, checkmate, and stalemate states stay in sync with the rendered
-          3D position.
+          Graph task <code>{GRAPH_TASK_ID}</code> wires the engine binding into
+          the live 3D board surface so turn, status, and move history stay in
+          sync with the rendered position.
         </p>
       </aside>
     </section>

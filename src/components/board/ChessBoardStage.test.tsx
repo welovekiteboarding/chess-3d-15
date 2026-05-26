@@ -32,6 +32,19 @@ describe('ChessBoardStage', () => {
     )
   })
 
+  it('surfaces the current integration issue metadata in the live board rail', () => {
+    render(<ChessBoardStage />)
+
+    expect(screen.getByText('Issue C31-24')).toBeInTheDocument()
+    expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
+      'chess-004d',
+    )
+    expect(screen.getByText('Issue C31-24').closest('aside')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
+  })
+
   it('renders check status from the supplied engine state', () => {
     const checkedGame = createChessGame({
       pieces: [
