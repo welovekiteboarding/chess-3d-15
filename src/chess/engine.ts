@@ -25,16 +25,20 @@ import {
   type PromotionPieceType,
 } from '../types/chess'
 
-type BoardState = Partial<Record<ChessSquare, ChessPiece>>
+export type ChessSearchBoardState = Partial<Record<ChessSquare, ChessPiece>>
 
-interface InternalPosition {
-  board: BoardState
+export interface ChessSearchPosition {
+  board: ChessSearchBoardState
   turn: PieceColor
   castlingRights: CastlingRightsByColor
   enPassantTarget: ChessSquare | null
   halfmoveClock: number
   fullmoveNumber: number
 }
+
+type BoardState = ChessSearchBoardState
+
+interface InternalPosition extends ChessSearchPosition {}
 
 interface BaseMove {
   from: ChessSquare
@@ -143,10 +147,7 @@ export function generateSearchLegalMoves(
   game: ChessPositionState,
   square?: string,
 ): LegalMove[] {
-  const position = toInternalPosition(game)
-  const targetSquare = square === undefined ? undefined : parseSquare(square)
-
-  return generateLegalMovesInternal(position, targetSquare, false)
+  return generateSearchLegalMovesFromPosition(createSearchPosition(game), square)
 }
 
 export function makeMove(
@@ -200,7 +201,7 @@ export function applyLegalMoveState(
   game: ChessPositionState,
   move: LegalMove,
 ): ChessPositionState {
-  return createPositionState(applyMoveToPosition(toInternalPosition(game), move))
+  return createPositionState(applySearchMove(createSearchPosition(game), move))
 }
 
 export function getPieceAtSquare(
@@ -216,7 +217,36 @@ export function getPieceAtSquare(
 }
 
 export function isInCheck(game: ChessPositionState, color: PieceColor): boolean {
-  return isKingInCheck(toInternalPosition(game), color)
+  return isSearchPositionInCheck(createSearchPosition(game), color)
+}
+
+export function createSearchPosition(
+  game: ChessPositionState,
+): ChessSearchPosition {
+  return toInternalPosition(game)
+}
+
+export function generateSearchLegalMovesFromPosition(
+  position: ChessSearchPosition,
+  square?: string,
+): LegalMove[] {
+  const targetSquare = square === undefined ? undefined : parseSquare(square)
+
+  return generateLegalMovesInternal(position, targetSquare, false)
+}
+
+export function applySearchMove(
+  position: ChessSearchPosition,
+  move: LegalMove,
+): ChessSearchPosition {
+  return applyMoveToPosition(position, move)
+}
+
+export function isSearchPositionInCheck(
+  position: ChessSearchPosition,
+  color: PieceColor,
+): boolean {
+  return isKingInCheck(position, color)
 }
 
 export function replayGameHistory(

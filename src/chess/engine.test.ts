@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest'
 import {
   applyLegalMove,
   applyLegalMoveState,
+  applySearchMove,
+  createSearchPosition,
   createChessGame,
   generateLegalMoves,
   generateSearchLegalMoves,
+  generateSearchLegalMovesFromPosition,
   getPieceAtSquare,
   isInCheck,
+  isSearchPositionInCheck,
   makeMove,
   replayGameHistory,
 } from './engine'
@@ -36,6 +40,12 @@ function playMoves(game: ChessGameState, moves: MoveInput[]): ChessGameState {
 function listDestinations(game: ChessGameState, square: string): string[] {
   return generateLegalMoves(game, square)
     .map((move) => move.to)
+    .sort()
+}
+
+function moveKeys(moves: LegalMove[]): string[] {
+  return moves
+    .map((move) => `${move.from}-${move.to}-${move.promotion ?? 'none'}`)
     .sort()
 }
 
@@ -295,13 +305,55 @@ describe('generateSearchLegalMoves', () => {
       { turn: 'white' },
     )
 
-    const moveKeys = (moves: LegalMove[]): string[] =>
-      moves
-        .map((move) => `${move.from}-${move.to}-${move.promotion ?? 'none'}`)
-        .sort()
-
     expect(moveKeys(generateSearchLegalMoves(game))).toEqual(
       moveKeys(generateLegalMoves(game)),
+    )
+  })
+})
+
+describe('search position helpers', () => {
+  it('generate the same search move set from the internal search position', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+      ],
+      { turn: 'white' },
+    )
+
+    const searchPosition = createSearchPosition(game)
+
+    expect(moveKeys(generateSearchLegalMovesFromPosition(searchPosition))).toEqual(
+      moveKeys(generateSearchLegalMoves(game)),
+    )
+  })
+
+  it('apply moves and check detection consistently in the search position helpers', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+      ],
+      { turn: 'white' },
+    )
+    const move = generateSearchLegalMoves(game).find(
+      (legalMove) => legalMove.to === 'd7',
+    )
+
+    expect(move).toBeDefined()
+
+    const nextPositionState = applyLegalMoveState(game, move!)
+    const nextSearchPosition = applySearchMove(createSearchPosition(game), move!)
+
+    expect(
+      moveKeys(generateSearchLegalMovesFromPosition(nextSearchPosition)),
+    ).toEqual(moveKeys(generateSearchLegalMoves(nextPositionState)))
+    expect(isSearchPositionInCheck(nextSearchPosition, nextSearchPosition.turn)).toBe(
+      isInCheck(nextPositionState, nextPositionState.turn),
     )
   })
 })

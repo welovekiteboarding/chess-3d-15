@@ -1,9 +1,11 @@
 import {
-  applyLegalMoveState,
+  applySearchMove,
+  createSearchPosition,
   generateLegalMoves,
-  generateSearchLegalMoves,
-  isInCheck,
+  generateSearchLegalMovesFromPosition,
+  isSearchPositionInCheck,
 } from '../chess/engine'
+import type { ChessSearchPosition } from '../chess/engine'
 import type {
   AiDifficulty,
   AiMoveRequest,
@@ -13,8 +15,11 @@ import type {
   AiSearchOptions,
   AiScoredMove,
 } from '../types/ai'
+import {
+  CHESS_FILES,
+  CHESS_RANKS,
+} from '../types/chess'
 import type {
-  ChessPositionState,
   ChessSquare,
   LegalMove,
   PieceColor,
@@ -209,6 +214,7 @@ function selectSearchMove(
 ): LegalMove {
   const random = request.random ?? Math.random
   const orderedMoves = orderMovesForSearch(legalMoves)
+  const searchPosition = createSearchPosition(request.game)
   const bestMoves: LegalMove[] = []
   const depth = normalizeSearchDepth(options.depth)
   const useAlphaBeta = options.alphaBetaPruning ?? false
@@ -222,7 +228,7 @@ function selectSearchMove(
       break
     }
 
-    const nextGame = applyMove(request.game, move)
+    const nextGame = applyMove(searchPosition, move)
     const score = minimax(
       nextGame,
       depth - 1,
@@ -248,7 +254,7 @@ function selectSearchMove(
 }
 
 function minimax(
-  game: ChessPositionState,
+  game: ChessSearchPosition,
   depth: number,
   alpha: number,
   beta: number,
@@ -270,13 +276,15 @@ function minimax(
     return evaluateBoard(
       game,
       context.maximizingColor,
-      isInCheck(game, game.turn) ? game.turn : null,
+      isSearchPositionInCheck(game, game.turn) ? game.turn : null,
     )
   }
 
   recordPositionEvaluation(context)
-  const checkedColor = isInCheck(game, game.turn) ? game.turn : null
-  const legalMoves = generateSearchLegalMoves(game)
+  const checkedColor = isSearchPositionInCheck(game, game.turn)
+    ? game.turn
+    : null
+  const legalMoves = generateSearchLegalMovesFromPosition(game)
 
   if (legalMoves.length === 0) {
     return storeSearchScore(
@@ -398,25 +406,25 @@ function evaluateTerminalPosition(
 }
 
 function evaluateBoard(
-  game: ChessPositionState,
+  game: ChessSearchPosition,
   maximizingColor: PieceColor,
   checkedColor: PieceColor | null,
 ): number {
   let score = 0
 
-  for (const piece of game.pieces) {
+  forEachSearchPiece(game, (square, piece) => {
     const direction = piece.color === maximizingColor ? 1 : -1
 
     score += AI_PIECE_VALUES[piece.type] * direction
 
-    if (piece.type !== 'king' && CENTER_SQUARES.has(piece.square)) {
+    if (piece.type !== 'king' && CENTER_SQUARES.has(square)) {
       score += SEARCH_CENTER_CONTROL_BONUS * direction
     }
 
     if (piece.type === 'pawn') {
-      score += evaluatePawnAdvancement(piece.square, piece.color) * direction
+      score += evaluatePawnAdvancement(square, piece.color) * direction
     }
-  }
+  })
 
   if (checkedColor !== null) {
     score += checkedColor === maximizingColor
@@ -446,8 +454,11 @@ function compareScoredMoves(left: AiScoredMove, right: AiScoredMove): number {
   return right.score - left.score || compareLegalMoves(left.move, right.move)
 }
 
-function applyMove(game: ChessPositionState, move: LegalMove): ChessPositionState {
-  return applyLegalMoveState(game, move)
+function applyMove(
+  game: ChessSearchPosition,
+  move: LegalMove,
+): ChessSearchPosition {
+  return applySearchMove(game, move)
 }
 
 function pickRandomMove(moves: LegalMove[], random: () => number): LegalMove {
@@ -660,21 +671,39 @@ function createMoveKey(move: LegalMove): string {
 }
 
 function createSearchCacheKey(
-  game: ChessPositionState,
+  game: ChessSearchPosition,
   maximizingColor: PieceColor,
 ): string {
   const castlingRights = `${Number(game.castlingRights.white.kingSide)}${Number(game.castlingRights.white.queenSide)}${Number(game.castlingRights.black.kingSide)}${Number(game.castlingRights.black.queenSide)}`
-  const pieces = game.pieces
-    .map((piece) => `${piece.color[0]}${toPieceTypeCode(piece.type)}${piece.square}`)
-    .join(',')
+  const pieces: string[] = []
+
+  forEachSearchPiece(game, (square, piece) => {
+    pieces.push(`${piece.color[0]}${toPieceTypeCode(piece.type)}${square}`)
+  })
 
   return [
     maximizingColor,
     game.turn,
     castlingRights,
     game.enPassantTarget ?? '-',
-    pieces,
+    pieces.join(','),
   ].join('|')
+}
+
+function forEachSearchPiece(
+  game: ChessSearchPosition,
+  visit: (square: ChessSquare, piece: LegalMove['piece']) => void,
+): void {
+  for (const rank of CHESS_RANKS) {
+    for (const file of CHESS_FILES) {
+      const square = `${file}${rank}` as ChessSquare
+      const piece = game.board[square]
+
+      if (piece !== undefined) {
+        visit(square, piece)
+      }
+    }
+  }
 }
 
 function toPieceTypeCode(type: LegalMove['piece']['type']): string {
