@@ -136,6 +136,10 @@ export function ChessBoardStage({
           return []
         }
 
+        if (latestMoveIndex < previousMoveIndex) {
+          return []
+        }
+
         return latestMoveIndex === previousMoveIndex
           ? currentAnimatedPieces
           : createChessMoveAnimations(nextSnapshot, lastRecord)

@@ -230,6 +230,33 @@ describe('ChessBoardStage', () => {
     expect(screen.getByRole('button', { name: 'Undo move' })).toBeDisabled()
   })
 
+  it('clears the active move animation when undo rewinds to an earlier local move', () => {
+    vi.useFakeTimers()
+
+    const binding = createChessSceneBinding()
+
+    render(<ChessBoardStage binding={binding} />)
+
+    act(() => {
+      binding.move({ from: 'e2', to: 'e4' })
+      binding.move({ from: 'e7', to: 'e5' })
+    })
+
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
+      'e7->e5:black:pawn',
+    )
+
+    act(() => {
+      binding.undo()
+    })
+
+    expect(screen.getByRole('heading', { name: 'Black to move' })).toBeInTheDocument()
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent('none')
+
+    vi.useRealTimers()
+  })
+
   it('lets the current player resign and blocks further board interaction until restart', () => {
     render(<ChessBoardStage />)
 
