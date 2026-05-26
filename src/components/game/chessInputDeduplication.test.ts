@@ -26,7 +26,7 @@ describe('chessInputDeduplication', () => {
     ).toBe(true)
   })
 
-  it('allows the same square after the move index changes', () => {
+  it('ignores a same-square click follow-up even after the move index advances', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(
         {
@@ -38,6 +38,27 @@ describe('chessInputDeduplication', () => {
         },
         {
           square: 'e4',
+          moveIndex: 4,
+          timestampMs: 1_000 + 8,
+          pointerType: 'unknown',
+          source: 'click',
+        },
+      ),
+    ).toBe(true)
+  })
+
+  it('allows a different square after the move index changes', () => {
+    expect(
+      shouldIgnoreDuplicateSquareSelect(
+        {
+          square: 'e4',
+          moveIndex: 3,
+          timestampMs: 1_000,
+          pointerType: 'touch',
+          source: 'pointerdown',
+        },
+        {
+          square: 'e5',
           moveIndex: 4,
           timestampMs: 1_000 + 8,
           pointerType: 'unknown',

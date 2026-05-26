@@ -66,7 +66,6 @@ export function shouldIgnoreDuplicateSquareSelect(
   return (
     previous !== null &&
     previous.square === next.square &&
-    previous.moveIndex === next.moveIndex &&
     elapsedMs >= 0 &&
     elapsedMs <= CHESS_INPUT_DEDUPLICATION_WINDOW_MS &&
     previous.source === 'pointerdown' &&
