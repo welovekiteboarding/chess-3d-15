@@ -22,6 +22,13 @@ describe('ChessGameControls', () => {
       />,
     )
 
+    expect(screen.getByText('Issue C31-40')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Graph task chess-009d wires the reusable move history surface into the live game controls/i,
+      ),
+    ).toBeInTheDocument()
+
     const moveHistory = screen.getByRole('list', { name: 'Move history' })
 
     expect(
