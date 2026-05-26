@@ -57,13 +57,16 @@ export interface ChessMove {
   rookTo: ChessSquare | null
 }
 
-export interface ChessPositionSnapshot {
+export interface ChessPositionState {
   pieces: ChessPiecePlacement[]
   turn: PieceColor
   castlingRights: CastlingRightsByColor
   enPassantTarget: ChessSquare | null
   halfmoveClock: number
   fullmoveNumber: number
+}
+
+export interface ChessPositionSnapshot extends ChessPositionState {
   status: GameStatus
   checkedColor: PieceColor | null
   winner: PieceColor | null

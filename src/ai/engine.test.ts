@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AI_SEARCH_DEPTHS,
   createAiSearchDiagnostics,
+  rankEasyMoves,
   scoreEasyMove,
   searchBestMove,
   selectAiMove,
@@ -124,6 +125,146 @@ describe('selectAiMove', () => {
     expect(diagnostics.positionsEvaluated).toBeGreaterThan(0)
     expect(diagnostics.alphaBetaCutoffs).toBeGreaterThan(0)
   })
+
+  it('stops search at the configured position budget and still returns a legal move', () => {
+    const game = createChessGame()
+    const diagnostics = createAiSearchDiagnostics()
+    const searchedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: 4,
+        alphaBetaPruning: true,
+        diagnostics,
+        maxPositions: 25,
+      },
+    )
+
+    expect(new Set(generateLegalMoves(game).map(moveKey)).has(moveKey(searchedMove))).toBe(true)
+    expect(diagnostics.positionsEvaluated).toBeLessThanOrEqual(25)
+    expect(diagnostics.terminatedEarly).toBe(true)
+  })
+
+  it('reuses cached positions when different move orders reach the same search state', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'a1', color: 'white', type: 'rook' },
+        { square: 'h1', color: 'white', type: 'rook' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+    const diagnostics = createAiSearchDiagnostics()
+
+    searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: 3,
+        diagnostics,
+      },
+    )
+
+    expect(diagnostics.cacheHits).toBeGreaterThan(0)
+  })
+
+  it('reuses cached positions during hard-mode alpha-beta search', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'a1', color: 'white', type: 'rook' },
+        { square: 'h1', color: 'white', type: 'rook' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+    const diagnostics = createAiSearchDiagnostics()
+
+    searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        diagnostics,
+      },
+    )
+
+    expect(diagnostics.cacheHits).toBeGreaterThan(0)
+  })
+
+  it('returns the same hard-mode move for the same seeded random input', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'a1', color: 'white', type: 'rook' },
+        { square: 'h1', color: 'white', type: 'rook' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+    const request = {
+      game,
+      difficulty: 'hard' as const,
+      random: () => 0.75,
+    }
+
+    const firstMove = selectAiMove(request)
+    const secondMove = selectAiMove(request)
+
+    expect(moveKey(firstMove)).toBe(moveKey(secondMove))
+  })
+
+  it('falls back to the deepest completed search depth when the next depth hits its budget', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+        { square: 'e6', color: 'black', type: 'bishop' },
+      ],
+      { turn: 'white' },
+    )
+    const completedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.medium,
+        alphaBetaPruning: true,
+      },
+    )
+    const budgetedDiagnostics = createAiSearchDiagnostics()
+    const budgetedMove = searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        diagnostics: budgetedDiagnostics,
+        maxPositions: 300,
+      },
+    )
+
+    expect(moveKey(budgetedMove)).toBe(moveKey(completedMove))
+    expect(budgetedDiagnostics.terminatedEarly).toBe(true)
+  })
 })
 
 describe('scoreEasyMove', () => {
@@ -145,5 +286,32 @@ describe('scoreEasyMove', () => {
     expect(rookCapture).toBeDefined()
     expect(quietMove).toBeDefined()
     expect(scoreEasyMove(rookCapture!)).toBeGreaterThan(scoreEasyMove(quietMove!))
+  })
+
+  it('orders equal-scoring moves deterministically regardless of input order', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+
+    const queenMoves = generateLegalMoves(game, 'd4')
+    const leftMove = queenMoves.find((move) => move.to === 'b2')
+    const rightMove = queenMoves.find((move) => move.to === 'd3')
+
+    expect(leftMove).toBeDefined()
+    expect(rightMove).toBeDefined()
+
+    const forwardOrder = rankEasyMoves([leftMove!, rightMove!]).map(
+      (entry) => moveKey(entry.move),
+    )
+    const reverseOrder = rankEasyMoves([rightMove!, leftMove!]).map(
+      (entry) => moveKey(entry.move),
+    )
+
+    expect(forwardOrder).toEqual(reverseOrder)
   })
 })
