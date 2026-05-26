@@ -14,6 +14,10 @@ export interface ChessAiMatchSettingsDescription {
   statusDetail: string
 }
 
+export interface DescribeChessAiMatchSettingsOptions {
+  isThinking?: boolean
+}
+
 export const CHESS_GAME_MODE_OPTIONS: readonly ChessGameMode[] = [
   'human-vs-human',
   'human-vs-ai',
@@ -84,11 +88,21 @@ export function isHumanVsAiMode(settings: ChessAiMatchSettings): boolean {
 
 export function describeChessAiMatchSettings(
   settings: ChessAiMatchSettings,
+  options: DescribeChessAiMatchSettingsOptions = {},
 ): ChessAiMatchSettingsDescription {
   const modeLabel = CHESS_GAME_MODE_LABELS[settings.mode]
   const difficultyLabel = CHESS_AI_DIFFICULTY_LABELS[settings.difficulty]
 
   if (isHumanVsAiMode(settings)) {
+    if (options.isThinking) {
+      return {
+        modeLabel,
+        difficultyLabel,
+        statusLabel: 'AI thinking',
+        statusDetail: `${difficultyLabel} difficulty is choosing Black's reply move.`,
+      }
+    }
+
     return {
       modeLabel,
       difficultyLabel,

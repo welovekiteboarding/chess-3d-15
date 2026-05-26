@@ -34,6 +34,9 @@ describe('chessAiMatchSettings', () => {
       difficulty: 'hard',
     })
     expect(isHumanVsAiMode(aiSettings)).toBe(true)
+    expect(describeChessAiMatchSettings(aiSettings)).toMatchObject({
+      statusLabel: 'AI opponent ready',
+    })
   })
 
   it('updates difficulty without changing the selected mode', () => {
@@ -45,6 +48,22 @@ describe('chessAiMatchSettings', () => {
     expect(setChessAiDifficulty(aiSettings, 'easy')).toEqual({
       mode: 'human-vs-ai',
       difficulty: 'easy',
+    })
+  })
+
+  it('describes the transient thinking state for human-vs-ai turns', () => {
+    expect(
+      describeChessAiMatchSettings(
+        createChessAiMatchSettings({
+          mode: 'human-vs-ai',
+          difficulty: 'medium',
+        }),
+        {
+          isThinking: true,
+        },
+      ),
+    ).toMatchObject({
+      statusLabel: 'AI thinking',
     })
   })
 })
