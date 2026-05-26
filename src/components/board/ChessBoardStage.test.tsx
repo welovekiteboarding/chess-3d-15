@@ -227,6 +227,29 @@ describe('ChessBoardStage', () => {
     )
   })
 
+  it('treats duplicate tap delivery as a single touch interaction', () => {
+    render(<ChessBoardStage />)
+
+    const sourceSquare = screen.getByRole('button', { name: 'select e2' })
+    const targetSquare = screen.getByRole('button', { name: 'select e4' })
+
+    fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    fireEvent.click(sourceSquare)
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'e3:move,e4:move',
+    )
+
+    fireEvent.pointerDown(targetSquare, { pointerType: 'touch' })
+    fireEvent.click(targetSquare)
+
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Black to move' }),
+    ).toBeInTheDocument()
+  })
+
   it('surfaces capture targets distinctly when a selected piece can capture', () => {
     render(
       <ChessBoardStage

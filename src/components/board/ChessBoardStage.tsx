@@ -7,6 +7,10 @@ import {
   filterScenePiecesForAnimation,
 } from '../game/chessMoveAnimations'
 import {
+  shouldIgnoreDuplicateSquareSelect,
+  type ChessHandledSquareSelect,
+} from '../game/chessInputDeduplication'
+import {
   createChessSceneBinding,
   describeChessSceneStatus,
 } from '../../domain/chessScene'
@@ -56,6 +60,7 @@ export function ChessBoardStage({
     ReadonlyArray<ChessAnimatedPieceMotion>
   >([])
   const previousMoveIndexRef = useRef(0)
+  const previousSquareSelectRef = useRef<ChessHandledSquareSelect | null>(null)
   const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   )
@@ -70,6 +75,7 @@ export function ChessBoardStage({
     }
     previousMoveIndexRef.current =
       initialGame.history[initialGame.history.length - 1]?.index ?? 0
+    previousSquareSelectRef.current = null
     setSnapshot(initialSnapshot)
     setInteractionState((current) =>
       syncChessInteractionState(initialGame, current),
@@ -166,6 +172,23 @@ export function ChessBoardStage({
 
   function handleSquareSelect(square: ChessSquare) {
     const game = sceneBinding.getGame()
+    const moveIndex = game.history[game.history.length - 1]?.index ?? 0
+    const handledSelection = {
+      square,
+      moveIndex,
+      timestampMs: Date.now(),
+    }
+
+    if (
+      shouldIgnoreDuplicateSquareSelect(
+        previousSquareSelectRef.current,
+        handledSelection,
+      )
+    ) {
+      return
+    }
+
+    previousSquareSelectRef.current = handledSelection
     const activePiece = getPieceAtSquare(game, square)
     const selectedSquare = interactionSnapshot.selectedSquare
     const requestedMove = interactionSnapshot.legalTargets.find(
