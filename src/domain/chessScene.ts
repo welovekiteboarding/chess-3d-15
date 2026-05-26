@@ -52,6 +52,7 @@ export function createChessSceneBinding(
     },
     subscribe(listener: ChessSceneListener) {
       listeners.add(listener)
+      listener(createChessSceneSnapshot(game))
 
       return () => {
         listeners.delete(listener)

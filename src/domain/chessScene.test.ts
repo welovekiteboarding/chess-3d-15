@@ -49,6 +49,33 @@ describe('createChessSceneSnapshot', () => {
 })
 
 describe('createChessSceneBinding', () => {
+  it('emits the current turn and status immediately when a listener subscribes', () => {
+    const binding = createChessSceneBinding(
+      createChessGame({
+        pieces: [
+          { square: 'e1', color: 'white', type: 'king' },
+          { square: 'e8', color: 'black', type: 'king' },
+          { square: 'e4', color: 'white', type: 'rook' },
+        ],
+        turn: 'black',
+      }),
+    )
+    const updateListener = vi.fn()
+
+    const unsubscribe = binding.subscribe(updateListener)
+
+    expect(updateListener).toHaveBeenCalledTimes(1)
+    expect(
+      describeChessSceneStatus(updateListener.mock.calls[0]![0]),
+    ).toEqual({
+      turnLabel: 'Black to move',
+      statusLabel: 'Black is in check',
+      statusDetail: 'Black must answer the threat on this turn.',
+    })
+
+    unsubscribe()
+  })
+
   it('applies legal moves and updates the scene snapshot', () => {
     const binding = createChessSceneBinding()
     const updateListener = vi.fn()
@@ -75,8 +102,13 @@ describe('createChessSceneBinding', () => {
     ).toBeDefined()
     expect(binding.getGame().history).toHaveLength(1)
     expect(binding.getSnapshot()).toEqual(nextSnapshot)
-    expect(updateListener).toHaveBeenCalledTimes(1)
-    expect(updateListener).toHaveBeenCalledWith(nextSnapshot)
+    expect(updateListener).toHaveBeenCalledTimes(2)
+    expect(updateListener.mock.calls[0]![0]).toMatchObject({
+      turn: 'white',
+      status: 'active',
+      lastMove: null,
+    })
+    expect(updateListener.mock.calls[1]![0]).toEqual(nextSnapshot)
   })
 
   it('removes captured pieces from the scene snapshot', () => {
@@ -150,7 +182,12 @@ describe('createChessSceneBinding', () => {
     binding.subscribe(updateListener)
 
     expect(() => binding.move({ from: 'e2', to: 'e5' })).toThrow(/illegal move/i)
-    expect(updateListener).not.toHaveBeenCalled()
+    expect(updateListener).toHaveBeenCalledTimes(1)
+    expect(updateListener.mock.calls[0]![0]).toMatchObject({
+      turn: 'white',
+      status: 'active',
+      lastMove: null,
+    })
     expect(binding.getGame().history).toHaveLength(0)
   })
 })
