@@ -235,6 +235,35 @@ describe('chessSquareSelectHandlers', () => {
     )
   })
 
+  it('infers a mouse click pointer type from the preceding pointer-down even when timestamps are unavailable', () => {
+    const onSquareSelect = vi.fn()
+    const handlers = createChessSquareSelectHandlers('b5', onSquareSelect)
+
+    handlers.onPointerDown({
+      clientX: 88,
+      clientY: 132,
+      nativeEvent: {
+        clientX: 88,
+        clientY: 132,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+    })
+    handlers.onClick({
+      clientX: 90,
+      clientY: 133,
+      stopPropagation() {},
+    })
+
+    expect(onSquareSelect).toHaveBeenCalledWith(
+      'b5',
+      expect.objectContaining({
+        source: 'click',
+        pointerType: 'mouse',
+      }),
+    )
+  })
+
   it('infers a mouse click pointer type from the preceding pointer-down when click metadata omits it', () => {
     const onSquareSelect = vi.fn()
     const handlers = createChessSquareSelectHandlers('b5', onSquareSelect)
@@ -265,6 +294,43 @@ describe('chessSquareSelectHandlers', () => {
         timestampMs: 384,
       }),
     )
+  })
+
+  it('ignores mouse click selection after a drag gesture when timestamps are unavailable', () => {
+    const onSquareSelect = vi.fn()
+    const sourceHandlers = createChessSquareSelectHandlers('e4', onSquareSelect)
+    const targetHandlers = createChessSquareSelectHandlers('f4', onSquareSelect)
+
+    sourceHandlers.onPointerDown({
+      clientX: 120,
+      clientY: 84,
+      nativeEvent: {
+        clientX: 120,
+        clientY: 84,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+    })
+    targetHandlers.onPointerMove({
+      clientX: 142,
+      clientY: 84,
+      nativeEvent: {
+        clientX: 142,
+        clientY: 84,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+    })
+    targetHandlers.onClick({
+      clientX: 142,
+      clientY: 84,
+      nativeEvent: {
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+    })
+
+    expect(onSquareSelect).not.toHaveBeenCalled()
   })
 
   it('ignores non-primary pointer and mouse button input', () => {

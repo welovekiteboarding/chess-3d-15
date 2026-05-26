@@ -37,10 +37,10 @@ export interface ChessSquareSelectHandlerSet {
 }
 
 interface ChessMousePointerDownSnapshot {
-  clientX: number
-  clientY: number
+  clientX?: number
+  clientY?: number
   dragged: boolean
-  timestampMs: number
+  timestampMs?: number
 }
 
 interface ChessMouseClickOutcome {
@@ -205,15 +205,10 @@ function rememberMousePointerDown(
   const coordinates = resolvePointerCoordinates(event)
   const timestampMs = resolveChessSquareSelectTimestampMs(event)
 
-  if (coordinates === undefined || timestampMs === undefined) {
-    mousePointerDownSnapshots.delete(onSquareSelect)
-    return
-  }
-
   mousePointerDownSnapshots.set(onSquareSelect, {
-    ...coordinates,
     dragged: false,
-    timestampMs,
+    ...(coordinates ?? {}),
+    ...(timestampMs === undefined ? {} : { timestampMs }),
   })
 }
 
@@ -237,7 +232,11 @@ function trackMousePointerDrag(
 
   const coordinates = resolvePointerCoordinates(event)
 
-  if (coordinates === undefined) {
+  if (
+    coordinates === undefined ||
+    previousPointerDown.clientX === undefined ||
+    previousPointerDown.clientY === undefined
+  ) {
     return
   }
 
@@ -287,16 +286,25 @@ function resolveMouseClickOutcome(
   const coordinates = resolvePointerCoordinates(event)
   const timestampMs = resolveChessSquareSelectTimestampMs(event)
 
-  if (coordinates === undefined || timestampMs === undefined) {
-    return {
-      ignore: false,
-      pointerType: 'mouse',
+  if (
+    timestampMs !== undefined &&
+    previousPointerDown.timestampMs !== undefined
+  ) {
+    const elapsedMs = timestampMs - previousPointerDown.timestampMs
+
+    if (elapsedMs < 0 || elapsedMs > CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS) {
+      return {
+        ignore: false,
+        pointerType: 'mouse',
+      }
     }
   }
 
-  const elapsedMs = timestampMs - previousPointerDown.timestampMs
-
-  if (elapsedMs < 0 || elapsedMs > CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS) {
+  if (
+    coordinates === undefined ||
+    previousPointerDown.clientX === undefined ||
+    previousPointerDown.clientY === undefined
+  ) {
     return {
       ignore: false,
       pointerType: 'mouse',
