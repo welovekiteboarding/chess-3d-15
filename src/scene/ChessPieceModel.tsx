@@ -6,10 +6,8 @@ import {
   CHESS_MOVE_ANIMATION_DURATION_MS,
   resolveChessAnimationPose,
 } from '../components/game/chessMoveAnimations'
-import {
-  type ChessSquareSelectInput,
-} from '../components/game/chessInputDeduplication'
-import { createChessSquareSelectHandlers } from '../components/game/chessSquareSelectHandlers'
+import type { ChessSquareSelectInput } from '../input/chessInputDeduplication'
+import { createChessSquareSelectHandlers } from '../input/chessSquareSelectHandlers'
 import type {
   ChessScenePiece,
   ChessSquare,

@@ -8,8 +8,9 @@ export function GameShellPage() {
 
       <div className="game-shell-page__footer">
         <p className="body-copy">
-          Graph task <code>chess-005c</code> now adds smooth move animation and
-          shared mouse-plus-touch interactions to the live 3D board.
+          Graph task <code>chess-005d</code> now routes the shared mouse and
+          touch move handling through <code>src/input</code> into the live 3D
+          board.
         </p>
 
         <Link className="secondary-link" to="/">

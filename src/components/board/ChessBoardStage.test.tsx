@@ -5,7 +5,7 @@ import { createChessSceneBinding } from '../../domain/chessScene'
 import {
   resolveChessSquareSelectPointerType,
   type ChessSquareSelectInput,
-} from '../game/chessInputDeduplication'
+} from '../../input/chessInputDeduplication'
 import type { ChessGameState, MoveInput } from '../../types/chess'
 import { ChessBoardStage } from './ChessBoardStage'
 
@@ -116,11 +116,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-27')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-28')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-005c',
+      'chess-005d',
     )
-    expect(screen.getByText('Issue C31-27').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-28').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )

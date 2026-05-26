@@ -4,7 +4,7 @@ import {
   resolveChessSquareSelectPointerType,
   resolveChessHandledSquareSelectTimestampMs,
   shouldIgnoreDuplicateSquareSelect,
-} from './chessInputDeduplication'
+} from '../../input/chessInputDeduplication'
 
 describe('chessInputDeduplication', () => {
   it('ignores an immediate repeated selection for the same square', () => {

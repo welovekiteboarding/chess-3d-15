@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createChessSquareSelectHandlers } from './chessSquareSelectHandlers'
+import { createChessSquareSelectHandlers } from '../../input/chessSquareSelectHandlers'
 
 describe('chessSquareSelectHandlers', () => {
   it('dispatches pointer-down square selections with normalized pointer input', () => {
