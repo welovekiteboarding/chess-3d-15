@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { getPieceAtSquare } from '../../chess/engine'
 import {
   createChessSceneBinding,
   describeChessSceneStatus,
@@ -21,8 +22,10 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-25'
-const GRAPH_TASK_ID = 'chess-005a'
+const LINEAR_ISSUE_ID = 'C31-26'
+const GRAPH_TASK_ID = 'chess-005b'
+
+type InteractionFeedbackTone = 'idle' | 'invalid'
 
 interface ChessBoardStageProps {
   initialGame?: ChessGameState
@@ -41,18 +44,22 @@ export function ChessBoardStage({
   const [interactionState, setInteractionState] = useState(() =>
     createChessInteractionState(),
   )
+  const [interactionFeedbackTone, setInteractionFeedbackTone] =
+    useState<InteractionFeedbackTone>('idle')
 
   useEffect(() => {
     setSnapshot(sceneBinding.getSnapshot())
     setInteractionState((current) =>
       syncChessInteractionState(sceneBinding.getGame(), current),
     )
+    setInteractionFeedbackTone('idle')
 
     return sceneBinding.subscribe((nextSnapshot) => {
       setSnapshot(nextSnapshot)
       setInteractionState((current) =>
         syncChessInteractionState(sceneBinding.getGame(), current),
       )
+      setInteractionFeedbackTone('idle')
     })
   }, [sceneBinding])
 
@@ -63,25 +70,82 @@ export function ChessBoardStage({
   const interactionSnapshot = useMemo(
     () =>
       deriveChessInteractionSnapshot(sceneBinding.getGame(), interactionState),
-    [interactionState, sceneBinding, snapshot],
+    [interactionState, sceneBinding],
   )
   const sceneHighlights = useMemo(
     () => createChessSceneHighlights(interactionSnapshot),
     [interactionSnapshot],
   )
+  const interactionFeedback = useMemo(() => {
+    if (interactionFeedbackTone === 'invalid') {
+      return {
+        title: 'Illegal move blocked',
+        detail: 'Choose one of the highlighted destinations to move.',
+      }
+    }
+
+    if (interactionSnapshot.selectedSquare === null) {
+      return {
+        title: 'Select a piece',
+        detail: 'Click or tap one of the active side pieces to reveal legal moves.',
+      }
+    }
+
+    return {
+      title: `Selected ${interactionSnapshot.selectedSquare}`,
+      detail: interactionSnapshot.legalTargets.some(
+        (target) => target.kind === 'capture',
+      )
+        ? 'Capture destinations are highlighted separately from quiet moves.'
+        : 'Choose a highlighted square to move, or select another piece.',
+    }
+  }, [interactionFeedbackTone, interactionSnapshot])
   const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
   const moveChipLabel =
     snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
 
   function handleSquareSelect(square: ChessSquare) {
-    setInteractionState((current) =>
-      selectChessInteractionSquare(sceneBinding.getGame(), current, square),
+    const game = sceneBinding.getGame()
+    const activePiece = getPieceAtSquare(game, square)
+    const selectedSquare = interactionSnapshot.selectedSquare
+    const requestedMove = interactionSnapshot.legalTargets.find(
+      (target) => target.square === square,
     )
+
+    if (selectedSquare !== null && requestedMove !== undefined) {
+      setInteractionFeedbackTone('idle')
+      sceneBinding.move({
+        from: selectedSquare,
+        to: square,
+      })
+      return
+    }
+
+    if (activePiece !== null && activePiece.color === game.turn) {
+      setInteractionFeedbackTone('idle')
+      setInteractionState((current) =>
+        selectChessInteractionSquare(game, current, square),
+      )
+      return
+    }
+
+    if (selectedSquare === null) {
+      setInteractionFeedbackTone('idle')
+      return
+    }
+
+    setInteractionFeedbackTone('invalid')
   }
 
   return (
     <section className="board-stage" aria-labelledby="board-stage-title">
-      <div className="board-stage__viewport">
+      <div
+        className={`board-stage__viewport${
+          interactionFeedbackTone === 'invalid'
+            ? ' board-stage__viewport--invalid'
+            : ''
+        }`}
+      >
         <div className="board-stage__glow" />
         <ChessScene
           highlightedSquares={sceneHighlights}
@@ -143,9 +207,22 @@ export function ChessBoardStage({
 
         <p className="board-stage__callout">
           Graph task <code>{GRAPH_TASK_ID}</code> adds the first interaction
-          seam so piece selection and legal-destination highlights stay in sync
-          with the rendered position.
+          seam for committed moves, capture-aware destinations, and blocked
+          illegal targets.
         </p>
+
+        <div
+          className={`board-stage__feedback${
+            interactionFeedbackTone === 'invalid'
+              ? ' board-stage__feedback--invalid'
+              : ''
+          }`}
+        >
+          <p className="board-stage__feedback-title">{interactionFeedback.title}</p>
+          <p className="board-stage__feedback-detail">
+            {interactionFeedback.detail}
+          </p>
+        </div>
       </aside>
     </section>
   )

@@ -25,15 +25,16 @@ vi.mock('../../scene/ChessScene', () => ({
           .map((highlight) => `${highlight.square}:${highlight.kind}`)
           .join(',')}
       </div>
-      <button onClick={() => onSquareSelect?.('e2')} type="button">
-        click e2
-      </button>
-      <button
-        onPointerDown={() => onSquareSelect?.('g1')}
-        type="button"
-      >
-        touch g1
-      </button>
+      {['d4', 'e2', 'e4', 'e5', 'f3', 'f6', 'g1'].map((square) => (
+        <button
+          key={square}
+          onClick={() => onSquareSelect?.(square)}
+          onPointerDown={() => onSquareSelect?.(square)}
+          type="button"
+        >
+          {`select ${square}`}
+        </button>
+      ))}
     </div>
   ),
 }))
@@ -62,11 +63,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-25')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-26')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-005a',
+      'chess-005b',
     )
-    expect(screen.getByText('Issue C31-25').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-26').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -191,14 +192,14 @@ describe('ChessBoardStage', () => {
   it('selects pieces from click and touch input and exposes legal targets to the scene', () => {
     render(<ChessBoardStage />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'click e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
 
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
     expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
       'e3:move,e4:move',
     )
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'touch g1' }), {
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'select g1' }), {
       pointerType: 'touch',
     })
 
@@ -206,5 +207,67 @@ describe('ChessBoardStage', () => {
     expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
       'f3:move,h3:move',
     )
+  })
+
+  it('surfaces capture targets distinctly when a selected piece can capture', () => {
+    render(
+      <ChessBoardStage
+        initialGame={createChessGame({
+          pieces: [
+            { square: 'e1', color: 'white', type: 'king' },
+            { square: 'e8', color: 'black', type: 'king' },
+            { square: 'd4', color: 'white', type: 'bishop' },
+            { square: 'f6', color: 'black', type: 'rook' },
+          ],
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'select d4' }))
+
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'f6:capture',
+    )
+  })
+
+  it('commits a legal move from click and touch interaction', () => {
+    const { unmount } = render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Black to move' }),
+    ).toBeInTheDocument()
+
+    unmount()
+    render(<ChessBoardStage />)
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'select g1' }), {
+      pointerType: 'touch',
+    })
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'select f3' }), {
+      pointerType: 'touch',
+    })
+
+    expect(screen.getByText('Last move: g1 -> f3')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Black to move' }),
+    ).toBeInTheDocument()
+  })
+
+  it('blocks illegal moves and shows subtle feedback without clearing the active selection', () => {
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e5' }))
+
+    expect(screen.getByText('Opening position')).toBeInTheDocument()
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+    expect(screen.getByText('Illegal move blocked')).toBeInTheDocument()
+    expect(
+      screen.getByText('Choose one of the highlighted destinations to move.'),
+    ).toBeInTheDocument()
   })
 })
