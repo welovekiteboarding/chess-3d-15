@@ -1,6 +1,8 @@
 import type { ChessSquare } from '../../types/chess'
 
-export const CHESS_INPUT_DEDUPLICATION_WINDOW_MS = 96
+// Touch browsers can deliver a follow-up activation noticeably after the first tap.
+// Keep the window wide enough to collapse that duplicate into a single board action.
+export const CHESS_INPUT_DEDUPLICATION_WINDOW_MS = 400
 
 export interface ChessHandledSquareSelect {
   square: ChessSquare

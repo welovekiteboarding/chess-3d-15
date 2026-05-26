@@ -57,6 +57,23 @@ describe('chessInputDeduplication', () => {
     ).toBe(false)
   })
 
+  it('ignores delayed tap follow-up delivery for the same square and move index', () => {
+    expect(
+      shouldIgnoreDuplicateSquareSelect(
+        {
+          square: 'e2',
+          moveIndex: 5,
+          timestampMs: 1_000,
+        },
+        {
+          square: 'e2',
+          moveIndex: 5,
+          timestampMs: 1_320,
+        },
+      ),
+    ).toBe(true)
+  })
+
   it('allows a repeated selection when timestamps move backwards', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(

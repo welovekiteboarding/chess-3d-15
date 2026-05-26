@@ -228,12 +228,17 @@ describe('ChessBoardStage', () => {
   })
 
   it('treats duplicate tap delivery as a single touch interaction', () => {
+    vi.useFakeTimers()
+
     render(<ChessBoardStage />)
 
     const sourceSquare = screen.getByRole('button', { name: 'select e2' })
     const targetSquare = screen.getByRole('button', { name: 'select e4' })
 
     fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    act(() => {
+      vi.advanceTimersByTime(320)
+    })
     fireEvent.click(sourceSquare)
 
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
@@ -248,6 +253,8 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it('surfaces capture targets distinctly when a selected piece can capture', () => {
