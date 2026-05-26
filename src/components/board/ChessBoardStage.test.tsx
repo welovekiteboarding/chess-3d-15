@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { createChessAiMatchSettings } from '../../ai/gameMode'
 import { createChessGame, makeMove } from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
 import {
@@ -116,13 +117,45 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-30')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-29')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-008a',
+      'chess-007a',
     )
-    expect(screen.getByText('Issue C31-30').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-29').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
+    )
+  })
+
+  it('lets the user choose human-vs-ai mode and difficulty through the board rail', () => {
+    const handleAiMatchSettingsChange = vi.fn()
+
+    render(
+      <ChessBoardStage onAiMatchSettingsChange={handleAiMatchSettingsChange} />,
+    )
+
+    expect(screen.getByRole('radio', { name: 'Human vs Human' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Medium' })).toBeChecked()
+    expect(screen.getByText('Local human play')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Human vs AI' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Hard' }))
+
+    expect(screen.getByRole('radio', { name: 'Human vs AI' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Hard' })).toBeChecked()
+    expect(screen.getByText('AI opponent ready')).toBeInTheDocument()
+    expect(handleAiMatchSettingsChange).toHaveBeenNthCalledWith(
+      1,
+      createChessAiMatchSettings({
+        mode: 'human-vs-ai',
+      }),
+    )
+    expect(handleAiMatchSettingsChange).toHaveBeenNthCalledWith(
+      2,
+      createChessAiMatchSettings({
+        mode: 'human-vs-ai',
+        difficulty: 'hard',
+      }),
     )
   })
 
