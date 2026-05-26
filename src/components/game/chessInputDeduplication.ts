@@ -3,6 +3,7 @@ import type { ChessSquare } from '../../types/chess'
 // Some input stacks deliver a follow-up click after pointer-down already handled the square.
 // Keep the window wide enough to collapse that secondary activation into a single board action.
 export const CHESS_INPUT_DEDUPLICATION_WINDOW_MS = 400
+const CHESS_EVENT_TIMESTAMP_EPOCH_THRESHOLD_MS = 1_000_000_000_000
 
 export type ChessSquareSelectSource = 'pointerdown' | 'click'
 export type ChessSquareSelectPointerType = 'mouse' | 'touch' | 'pen' | 'unknown'
@@ -34,6 +35,11 @@ interface PointerTypeCarrier {
 export interface ChessHandledSquareSelect extends ChessSquareSelectInput {
   square: ChessSquare
   timestampMs: number
+}
+
+export interface ChessHandledSquareSelectTimestampResolution {
+  timestampMs: number
+  relativeEventTimestampOffsetMs: number | null
 }
 
 export function normalizeChessSquareSelectPointerType(
@@ -143,4 +149,36 @@ export function shouldIgnoreDuplicateSquareSelect(
     next.source === 'click' &&
     next.pointerType !== 'mouse'
   )
+}
+
+export function resolveChessHandledSquareSelectTimestampMs(
+  eventTimestampMs: number | undefined,
+  fallbackTimestampMs: number,
+  relativeEventTimestampOffsetMs: number | null,
+): ChessHandledSquareSelectTimestampResolution {
+  if (eventTimestampMs === undefined || !Number.isFinite(eventTimestampMs)) {
+    return {
+      timestampMs: fallbackTimestampMs,
+      relativeEventTimestampOffsetMs,
+    }
+  }
+
+  if (eventTimestampMs >= CHESS_EVENT_TIMESTAMP_EPOCH_THRESHOLD_MS) {
+    return {
+      timestampMs: eventTimestampMs,
+      relativeEventTimestampOffsetMs,
+    }
+  }
+
+  if (relativeEventTimestampOffsetMs === null) {
+    return {
+      timestampMs: fallbackTimestampMs,
+      relativeEventTimestampOffsetMs: fallbackTimestampMs - eventTimestampMs,
+    }
+  }
+
+  return {
+    timestampMs: eventTimestampMs + relativeEventTimestampOffsetMs,
+    relativeEventTimestampOffsetMs,
+  }
 }

@@ -65,6 +65,29 @@ vi.mock('../../scene/ChessScene', () => ({
           {`select ${square}`}
         </button>
       ))}
+      <button
+        onClick={() =>
+          onSquareSelect?.('e2', {
+            source: 'pointerdown',
+            pointerType: 'touch',
+            timestampMs: 120,
+          })
+        }
+        type="button"
+      >
+        select e2 touch timed
+      </button>
+      <button
+        onClick={() =>
+          onSquareSelect?.('e2', {
+            source: 'click',
+            pointerType: 'unknown',
+          })
+        }
+        type="button"
+      >
+        select e2 click untimed
+      </button>
     </div>
   ),
 }))
@@ -279,6 +302,28 @@ describe('ChessBoardStage', () => {
 
     fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+  })
+
+  it('deduplicates a touch click fallback when the pointer-down used a relative event timestamp', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-26T12:00:00.000Z'))
+
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 touch timed' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    act(() => {
+      vi.advanceTimersByTime(120)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 click untimed' }))
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'e3:move,e4:move',
+    )
+
+    vi.useRealTimers()
   })
 
   it('ignores a delayed touch click follow-up after a newer touch selection changed squares', () => {

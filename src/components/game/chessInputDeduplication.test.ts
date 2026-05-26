@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CHESS_INPUT_DEDUPLICATION_WINDOW_MS,
   resolveChessSquareSelectPointerType,
+  resolveChessHandledSquareSelectTimestampMs,
   shouldIgnoreDuplicateSquareSelect,
 } from './chessInputDeduplication'
 
@@ -179,5 +180,38 @@ describe('chessInputDeduplication', () => {
         },
       }),
     ).toBe('touch')
+  })
+
+  it('normalizes relative event timestamps onto the fallback clock for follow-up deduplication', () => {
+    expect(
+      resolveChessHandledSquareSelectTimestampMs(120, 1_700_000_000_000, null),
+    ).toEqual({
+      timestampMs: 1_700_000_000_000,
+      relativeEventTimestampOffsetMs: 1_699_999_999_880,
+    })
+
+    expect(
+      resolveChessHandledSquareSelectTimestampMs(
+        240,
+        1_700_000_000_120,
+        1_699_999_999_880,
+      ),
+    ).toEqual({
+      timestampMs: 1_700_000_000_120,
+      relativeEventTimestampOffsetMs: 1_699_999_999_880,
+    })
+  })
+
+  it('keeps untimed follow-up inputs on the fallback clock once a relative origin was learned', () => {
+    expect(
+      resolveChessHandledSquareSelectTimestampMs(
+        undefined,
+        1_700_000_000_240,
+        1_699_999_999_880,
+      ),
+    ).toEqual({
+      timestampMs: 1_700_000_000_240,
+      relativeEventTimestampOffsetMs: 1_699_999_999_880,
+    })
   })
 })

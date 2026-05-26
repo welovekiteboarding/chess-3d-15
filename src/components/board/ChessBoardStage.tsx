@@ -8,6 +8,7 @@ import {
 } from '../game/chessMoveAnimations'
 import {
   normalizeChessSquareSelectPointerType,
+  resolveChessHandledSquareSelectTimestampMs,
   shouldIgnoreDuplicateSquareSelect,
   type ChessHandledSquareSelect,
   type ChessSquareSelectInput,
@@ -63,6 +64,7 @@ export function ChessBoardStage({
   >([])
   const previousMoveIndexRef = useRef(0)
   const previousSquareSelectRef = useRef<ChessHandledSquareSelect | null>(null)
+  const relativeEventTimestampOffsetRef = useRef<number | null>(null)
   const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   )
@@ -78,6 +80,7 @@ export function ChessBoardStage({
     previousMoveIndexRef.current =
       initialGame.history[initialGame.history.length - 1]?.index ?? 0
     previousSquareSelectRef.current = null
+    relativeEventTimestampOffsetRef.current = null
     setSnapshot(initialSnapshot)
     setInteractionState((current) =>
       syncChessInteractionState(initialGame, current),
@@ -182,13 +185,18 @@ export function ChessBoardStage({
     input?: ChessSquareSelectInput,
   ) {
     const game = sceneBinding.getGame()
-    const timestampMs =
-      input?.timestampMs !== undefined && Number.isFinite(input.timestampMs)
-        ? input.timestampMs
-        : Date.now()
+    const timestampResolution = resolveChessHandledSquareSelectTimestampMs(
+      input?.timestampMs,
+      Date.now(),
+      relativeEventTimestampOffsetRef.current,
+    )
+
+    relativeEventTimestampOffsetRef.current =
+      timestampResolution.relativeEventTimestampOffsetMs
+
     const handledSelection: ChessHandledSquareSelect = {
       square,
-      timestampMs,
+      timestampMs: timestampResolution.timestampMs,
       source: input?.source ?? 'pointerdown',
       pointerType: normalizeChessSquareSelectPointerType(input?.pointerType),
     }
