@@ -52,8 +52,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-38'
-const GRAPH_TASK_ID = 'chess-009b'
+const LINEAR_ISSUE_ID = 'C31-39'
+const GRAPH_TASK_ID = 'chess-009c'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -133,6 +133,10 @@ export function ChessBoardStage({
       setInteractionFeedbackTone('idle')
       setAnimatedPieces((currentAnimatedPieces) => {
         if (lastRecord === null) {
+          return []
+        }
+
+        if (latestMoveIndex < previousMoveIndex) {
           return []
         }
 
@@ -382,6 +386,17 @@ export function ChessBoardStage({
     sceneBinding.restart()
   }
 
+  function handleUndo() {
+    const game = sceneBinding.getGame()
+
+    if (game.history.length === 0) {
+      return
+    }
+
+    resetSquareSelectDeduplication()
+    sceneBinding.undo(resolveChessUndoPlies(game, resolvedAiMatchSettings))
+  }
+
   function handleResign() {
     const game = sceneBinding.getGame()
     const resignedColor = isHumanVsAiMode(resolvedAiMatchSettings)
@@ -491,9 +506,10 @@ export function ChessBoardStage({
 
         <p className="board-stage__callout">
           Graph task <code>{GRAPH_TASK_ID}</code> extends the shared live scene
-          binding with readable move history and captured-piece tracking while
-          preserving the existing restart, resignation, AI-turn, and board
-          interaction seams.
+          binding with AI-aware undo behavior, disabled control states,
+          readable move history, and captured-piece tracking while preserving
+          the existing restart, resignation, AI-turn, and board interaction
+          seams.
         </p>
 
         <ChessAiMatchControls
@@ -505,6 +521,7 @@ export function ChessBoardStage({
 
         <ChessGameControls
           game={currentGame}
+          onUndo={handleUndo}
           onRestart={handleRestart}
           onResign={handleResign}
         />
@@ -536,4 +553,25 @@ function formatLastMoveLabel(lastMove: ChessSceneLastMove | null): string {
   return `${lastMove.from} -> ${lastMove.to}${
     lastMove.promotion === null ? '' : ` = ${lastMove.promotion}`
   }`
+}
+
+function resolveChessUndoPlies(
+  game: ChessGameState,
+  aiMatchSettings: ChessAiMatchSettings,
+): number {
+  if (!isHumanVsAiMode(aiMatchSettings)) {
+    return 1
+  }
+
+  const lastMove = game.history[game.history.length - 1] ?? null
+
+  if (
+    lastMove === null ||
+    lastMove.move.piece.color !== DEFAULT_CHESS_AI_COLOR ||
+    game.history.length === 1
+  ) {
+    return 1
+  }
+
+  return 2
 }

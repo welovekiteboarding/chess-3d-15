@@ -154,9 +154,9 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getAllByText('Issue C31-38')).toHaveLength(2)
+    expect(screen.getAllByText('Issue C31-39')).toHaveLength(2)
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-009b',
+      'chess-009c',
     )
     expect(screen.getByRole('heading', { name: 'White to move' }).closest('aside')).toHaveAttribute(
       'aria-live',
@@ -211,6 +211,50 @@ describe('ChessBoardStage', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Opening position')).toBeInTheDocument()
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+  })
+
+  it('undoes the latest move in local play', () => {
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo move' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'White to move' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Opening position')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Undo move' })).toBeDisabled()
+  })
+
+  it('clears the active move animation when undo rewinds to an earlier local move', () => {
+    vi.useFakeTimers()
+
+    const binding = createChessSceneBinding()
+
+    render(<ChessBoardStage binding={binding} />)
+
+    act(() => {
+      binding.move({ from: 'e2', to: 'e4' })
+      binding.move({ from: 'e7', to: 'e5' })
+    })
+
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
+      'e7->e5:black:pawn',
+    )
+
+    act(() => {
+      binding.undo()
+    })
+
+    expect(screen.getByRole('heading', { name: 'Black to move' })).toBeInTheDocument()
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent('none')
+
+    vi.useRealTimers()
   })
 
   it('lets the current player resign and blocks further board interaction until restart', () => {
@@ -305,6 +349,91 @@ describe('ChessBoardStage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resign game' }))
 
     expect(screen.getAllByText('Black wins by resignation.')).toHaveLength(2)
+
+    vi.useRealTimers()
+  })
+
+  it('undoes the pending human move during an AI turn and cancels the queued reply', () => {
+    vi.useFakeTimers()
+
+    const pendingMove = createDeferredMove()
+    const aiMoveClient = {
+      dispose: vi.fn(),
+      selectMove: vi.fn(() => pendingMove.promise),
+    }
+
+    render(
+      <ChessBoardStage
+        aiMatchSettings={createChessAiMatchSettings({
+          mode: 'human-vs-ai',
+          difficulty: 'medium',
+        })}
+        createAiMoveClient={() => aiMoveClient}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo move' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'White to move' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Opening position')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(CHESS_MOVE_ANIMATION_DURATION_MS)
+    })
+
+    expect(aiMoveClient.selectMove).not.toHaveBeenCalled()
+
+    vi.useRealTimers()
+  })
+
+  it('rewinds both the AI reply and the preceding human move with one undo', async () => {
+    vi.useFakeTimers()
+
+    const pendingMove = createDeferredMove()
+    const aiMoveClient = {
+      dispose: vi.fn(),
+      selectMove: vi.fn(() => pendingMove.promise),
+    }
+
+    render(
+      <ChessBoardStage
+        aiMatchSettings={createChessAiMatchSettings({
+          mode: 'human-vs-ai',
+          difficulty: 'hard',
+        })}
+        createAiMoveClient={() => aiMoveClient}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    act(() => {
+      vi.advanceTimersByTime(CHESS_MOVE_ANIMATION_DURATION_MS)
+    })
+
+    const gameAfterHumanMove = playMoves(createChessGame(), [
+      { from: 'e2', to: 'e4' },
+    ])
+
+    await act(async () => {
+      pendingMove.resolve(findLegalMove(gameAfterHumanMove, 'e7', 'e5'))
+      await pendingMove.promise
+    })
+
+    expect(screen.getByText('Last move: e7 -> e5')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo move' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'White to move' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Opening position')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Undo move' })).toBeDisabled()
 
     vi.useRealTimers()
   })
@@ -727,6 +856,15 @@ describe('ChessBoardStage', () => {
 
         listeners.forEach((listener) => {
           listener(snapshot)
+          listener(snapshot)
+        })
+
+        return snapshot
+      },
+      undo(plies?: number) {
+        const snapshot = baseBinding.undo(plies)
+
+        listeners.forEach((listener) => {
           listener(snapshot)
         })
 

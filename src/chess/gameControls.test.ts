@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { generateLegalMoves, makeMove, createChessGame } from './engine'
+import {
+  createChessGame,
+  generateLegalMoves,
+  getPieceAtSquare,
+  makeMove,
+} from './engine'
 import {
   createChessCapturedPiecesBySide,
   createChessGameControlsState,
   createChessMoveHistory,
   resignChessGame,
+  undoChessGame,
 } from './gameControls'
 
 describe('resignChessGame', () => {
@@ -49,6 +55,43 @@ describe('createChessGameControlsState', () => {
       canRestart: true,
       canResign: false,
       canUndo: false,
+    })
+  })
+
+  it('enables undo whenever there is recorded move history', () => {
+    const game = makeMove(createChessGame(), {
+      from: 'e2',
+      to: 'e4',
+    })
+
+    expect(createChessGameControlsState(game)).toEqual({
+      canRestart: true,
+      canResign: true,
+      canUndo: true,
+    })
+  })
+})
+
+describe('undoChessGame', () => {
+  it('reverts only the most recent move in local play', () => {
+    const game = [
+      { from: 'e2', to: 'e4' },
+      { from: 'e7', to: 'e5' },
+    ].reduce((state, move) => makeMove(state, move), createChessGame())
+
+    const undone = undoChessGame(game)
+
+    expect(undone.turn).toBe('black')
+    expect(undone.status).toBe('active')
+    expect(undone.history).toHaveLength(1)
+    expect(undone.history[0]?.move).toMatchObject({
+      from: 'e2',
+      to: 'e4',
+    })
+    expect(getPieceAtSquare(undone, 'e5')).toBeNull()
+    expect(getPieceAtSquare(undone, 'e7')).toEqual({
+      color: 'black',
+      type: 'pawn',
     })
   })
 })
