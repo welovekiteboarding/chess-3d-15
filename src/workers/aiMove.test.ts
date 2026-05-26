@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createChessGame, generateLegalMoves } from '../chess/engine'
 import type {
@@ -30,6 +30,10 @@ class FakeWorker implements AiMoveWorkerHandle {
     this.onmessage?.(new MessageEvent('message', { data: response }))
   }
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('resolveAiMoveWorkerRequest', () => {
   it.each(['easy', 'medium', 'hard'] as const)(
@@ -134,6 +138,31 @@ describe('AiMoveWorkerClient', () => {
     await expect(pendingMove).resolves.toEqual(resolvedMove)
   })
 
+  it('falls back to inline AI selection when module workers are unavailable', async () => {
+    vi.stubGlobal('Worker', undefined)
+
+    const client = new AiMoveWorkerClient()
+    const game = createChessGame()
+    const selectedMove = await client.selectMove({
+      game,
+      difficulty: 'easy',
+      randomSeed: 19,
+    })
+
+    expect(moveKey(selectedMove)).toBe(
+      moveKey(
+        resolveAiMoveWorkerRequest({
+          requestId: 'inline-fallback',
+          game,
+          difficulty: 'easy',
+          randomSeed: 19,
+        }),
+      ),
+    )
+
+    client.dispose()
+  })
+
   it('rejects when the worker replies with an error', async () => {
     const client = new AiMoveWorkerClient(() => worker)
     const pendingMove = client.selectMove({
@@ -150,6 +179,22 @@ describe('AiMoveWorkerClient', () => {
     })
 
     await expect(pendingMove).rejects.toThrow(/search budget exhausted/i)
+  })
+
+  it('rejects malformed success payloads as unreadable worker responses', async () => {
+    const client = new AiMoveWorkerClient(() => worker)
+    const pendingMove = client.selectMove({
+      game: createChessGame(),
+      difficulty: 'medium',
+    })
+
+    worker.emitResponse({
+      kind: 'success',
+      requestId: 'ai-move-0',
+      move: undefined,
+    } as unknown as AiMoveWorkerResponse)
+
+    await expect(pendingMove).rejects.toThrow(/unreadable response/i)
   })
 
   it('terminates the underlying worker when disposed', () => {

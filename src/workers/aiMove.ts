@@ -35,6 +35,10 @@ export type AiMoveWorkerResponse =
   | AiMoveWorkerSuccessResponse
   | AiMoveWorkerErrorResponse
 
+interface AiMoveWorkerConstructor {
+  new (url: URL, options?: WorkerOptions): AiMoveWorkerHandle
+}
+
 export interface AiMoveWorkerHandle {
   onerror: ((event: ErrorEvent) => unknown) | null
   onmessage: ((event: MessageEvent<AiMoveWorkerResponse>) => unknown) | null
@@ -97,9 +101,19 @@ export function createAiMoveWorkerResponse(
 }
 
 export function createAiMoveWorker(): AiMoveWorkerHandle {
-  return new Worker(new URL('./aiMove.worker.ts', import.meta.url), {
-    type: 'module',
-  }) as AiMoveWorkerHandle
+  const workerConstructor = resolveAiMoveWorkerConstructor()
+
+  if (workerConstructor === null) {
+    return createInlineAiMoveWorker()
+  }
+
+  try {
+    return new workerConstructor(new URL('./aiMove.worker.ts', import.meta.url), {
+      type: 'module',
+    })
+  } catch {
+    return createInlineAiMoveWorker()
+  }
 }
 
 export class AiMoveWorkerClient {
@@ -141,7 +155,12 @@ export class AiMoveWorkerClient {
     this.worker.terminate()
   }
 
-  private resolvePendingRequest(response: AiMoveWorkerResponse) {
+  private resolvePendingRequest(response: unknown) {
+    if (!isAiMoveWorkerResponse(response)) {
+      this.rejectAllPendingRequests(new Error(AI_WORKER_MESSAGE_ERROR))
+      return
+    }
+
     const pendingRequest = this.pendingRequests.get(response.requestId)
 
     if (pendingRequest === undefined) {
@@ -175,4 +194,62 @@ function toWorkerErrorMessage(error: unknown): string {
   }
 
   return AI_WORKER_RUNTIME_ERROR
+}
+
+function resolveAiMoveWorkerConstructor(): AiMoveWorkerConstructor | null {
+  return typeof Worker === 'function'
+    ? (Worker as unknown as AiMoveWorkerConstructor)
+    : null
+}
+
+function createInlineAiMoveWorker(): AiMoveWorkerHandle {
+  let isTerminated = false
+  const handle: AiMoveWorkerHandle = {
+    onerror: null,
+    onmessage: null,
+    onmessageerror: null,
+    postMessage(message) {
+      void Promise.resolve().then(() => {
+        if (isTerminated) {
+          return
+        }
+
+        handle.onmessage?.({
+          data: createAiMoveWorkerResponse(message),
+        } as MessageEvent<AiMoveWorkerResponse>)
+      })
+    },
+    terminate() {
+      isTerminated = true
+    },
+  }
+
+  return handle
+}
+
+function isAiMoveWorkerResponse(
+  value: unknown,
+): value is AiMoveWorkerResponse {
+  if (!isRecord(value) || typeof value.requestId !== 'string') {
+    return false
+  }
+
+  if (value.kind === 'error') {
+    return typeof value.message === 'string'
+  }
+
+  return value.kind === 'success' && isLegalMoveLike(value.move)
+}
+
+function isLegalMoveLike(value: unknown): value is LegalMove {
+  return (
+    isRecord(value) &&
+    typeof value.from === 'string' &&
+    typeof value.to === 'string' &&
+    'promotion' in value
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
