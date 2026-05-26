@@ -3,6 +3,7 @@ import type {
   ChessGameState,
   ChessMove,
   ChessMoveRecord,
+  ChessPiece,
   ChessPositionSnapshot,
   GameStatus,
   PieceColor,
@@ -13,6 +14,14 @@ export interface ChessGameControlsState {
   canResign: boolean
   canUndo: boolean
 }
+
+export interface ChessMoveHistoryItem {
+  index: number
+  color: PieceColor
+  notation: string
+}
+
+export type ChessCapturedPiecesBySide = Record<PieceColor, ChessPiece[]>
 
 export function isChessGameTerminalStatus(status: GameStatus): boolean {
   return (
@@ -31,6 +40,37 @@ export function createChessGameControlsState(
     canResign: !isChessGameTerminalStatus(game.status),
     canUndo: false,
   }
+}
+
+export function createChessMoveHistory(
+  game: Pick<ChessGameState, 'history'>,
+): ChessMoveHistoryItem[] {
+  return game.history.map((record) => ({
+    index: record.index,
+    color: record.move.piece.color,
+    notation: formatChessMoveRecord(record),
+  }))
+}
+
+export function createChessCapturedPiecesBySide(
+  game: Pick<ChessGameState, 'history'>,
+): ChessCapturedPiecesBySide {
+  const capturedPieces: ChessCapturedPiecesBySide = {
+    white: [],
+    black: [],
+  }
+
+  for (const record of game.history) {
+    if (record.move.capturedPiece === null) {
+      continue
+    }
+
+    capturedPieces[record.move.piece.color].push({
+      ...record.move.capturedPiece,
+    })
+  }
+
+  return capturedPieces
 }
 
 export function resignChessGame(
@@ -93,6 +133,47 @@ function cloneChessMove(move: ChessMove): ChessMove {
   }
 }
 
+function formatChessMoveRecord(record: ChessMoveRecord): string {
+  const { move } = record
+
+  if (move.isCastling) {
+    const castlingSide = move.to[0] === 'g' ? 'kingside' : 'queenside'
+    return `${formatPieceType(move.piece.type)} ${move.from} castles ${castlingSide}${formatMoveSuffix(
+      move,
+    )}`
+  }
+
+  let notation = `${formatPieceType(move.piece.type)} ${move.from} ${
+    move.isCapture ? 'captures' : 'to'
+  } ${move.to}`
+
+  if (move.isEnPassant) {
+    notation += ' en passant'
+  }
+
+  if (move.promotion !== null) {
+    notation += ` promoting to ${formatPieceType(move.promotion)}`
+  }
+
+  return `${notation}${formatMoveSuffix(move)}`
+}
+
+function formatMoveSuffix(move: ChessMove): string {
+  if (move.isCheckmate) {
+    return ', checkmate'
+  }
+
+  if (move.isStalemate) {
+    return ', stalemate'
+  }
+
+  if (move.isCheck) {
+    return ', check'
+  }
+
+  return ''
+}
+
 function clonePositionSnapshot(
   snapshot: ChessPositionSnapshot,
 ): ChessPositionSnapshot {
@@ -110,4 +191,8 @@ function clonePositionSnapshot(
     checkedColor: snapshot.checkedColor,
     winner: snapshot.winner,
   }
+}
+
+function formatPieceType(pieceType: ChessPiece['type']): string {
+  return pieceType[0]!.toUpperCase() + pieceType.slice(1)
 }

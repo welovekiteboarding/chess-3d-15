@@ -52,8 +52,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-37'
-const GRAPH_TASK_ID = 'chess-009a'
+const LINEAR_ISSUE_ID = 'C31-38'
+const GRAPH_TASK_ID = 'chess-009b'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -427,7 +427,11 @@ export function ChessBoardStage({
           <p className="body-copy">{statusDetail}</p>
         </div>
 
-        <div className="board-stage__notes" role="list">
+        <div
+          aria-label="Board status"
+          className="board-stage__notes"
+          role="list"
+        >
           <span className="board-chip" role="listitem">
             {statusLabel}
           </span>
@@ -486,9 +490,10 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> adds restart and resignation
-          controls on top of the shared live scene binding without breaking AI
-          turns or existing board interactions.
+          Graph task <code>{GRAPH_TASK_ID}</code> extends the shared live scene
+          binding with readable move history and captured-piece tracking while
+          preserving the existing restart, resignation, AI-turn, and board
+          interaction seams.
         </p>
 
         <ChessAiMatchControls
