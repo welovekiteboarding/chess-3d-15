@@ -1,5 +1,4 @@
-import type { ChessPiecePlacement, PieceColor, PieceKind } from '../assets/chessSetup'
-import { INITIAL_PIECES } from '../assets/chessSetup'
+import type { ChessScenePiece, PieceColor, PieceType } from '../types/chess'
 import { BOARD_SURFACE_Y, squareToScenePosition } from './boardCoordinates'
 
 const ACCENT_MATERIAL = {
@@ -24,7 +23,7 @@ const PIECE_MATERIALS: Record<
   },
 }
 
-const PIECE_SCALES: Record<PieceKind, number> = {
+const PIECE_SCALES: Record<PieceType, number> = {
   pawn: 0.88,
   rook: 0.94,
   knight: 0.98,
@@ -254,8 +253,14 @@ function King({ color }: PiecePrimitiveProps) {
   )
 }
 
-function ChessPieceShape({ color, kind }: { color: PieceColor; kind: PieceKind }) {
-  switch (kind) {
+function ChessPieceShape({
+  color,
+  pieceType,
+}: {
+  color: PieceColor
+  pieceType: PieceType
+}) {
+  switch (pieceType) {
     case 'pawn':
       return <Pawn color={color} />
     case 'rook':
@@ -271,28 +276,29 @@ function ChessPieceShape({ color, kind }: { color: PieceColor; kind: PieceKind }
   }
 }
 
-function ChessPiece({ piece }: { piece: ChessPiecePlacement }) {
+function ChessPiece({ piece }: { piece: ChessScenePiece }) {
   const position = squareToScenePosition(piece.square, BOARD_SURFACE_Y)
 
   return (
     <group
       position={position}
       rotation={[0, piece.color === 'white' ? 0 : Math.PI, 0]}
-      scale={PIECE_SCALES[piece.kind]}
+      scale={PIECE_SCALES[piece.type]}
     >
-      <ChessPieceShape color={piece.color} kind={piece.kind} />
+      <ChessPieceShape color={piece.color} pieceType={piece.type} />
     </group>
   )
 }
 
-export function ChessPieceRack() {
+interface ChessPieceRackProps {
+  pieces: ReadonlyArray<ChessScenePiece>
+}
+
+export function ChessPieceRack({ pieces }: ChessPieceRackProps) {
   return (
     <group>
-      {INITIAL_PIECES.map((piece) => (
-        <ChessPiece
-          key={`${piece.color}-${piece.kind}-${piece.square}`}
-          piece={piece}
-        />
+      {pieces.map((piece) => (
+        <ChessPiece key={`${piece.color}-${piece.type}-${piece.square}`} piece={piece} />
       ))}
     </group>
   )

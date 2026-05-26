@@ -1,49 +1,88 @@
-import { INITIAL_PIECES } from '../../assets/chessSetup'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  createChessSceneBinding,
+  describeChessSceneStatus,
+} from '../../domain/chessScene'
 import { ChessScene } from '../../scene/ChessScene'
 import { squareToScenePosition } from '../../scene/boardCoordinates'
+import type { ChessGameState, ChessSceneBinding } from '../../types/chess'
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
 
-export function ChessBoardStage() {
+interface ChessBoardStageProps {
+  initialGame?: ChessGameState
+  binding?: ChessSceneBinding
+}
+
+export function ChessBoardStage({
+  initialGame,
+  binding,
+}: ChessBoardStageProps) {
+  const sceneBinding = useMemo(
+    () => binding ?? createChessSceneBinding(initialGame),
+    [binding, initialGame],
+  )
+  const [snapshot, setSnapshot] = useState(() => sceneBinding.getSnapshot())
+
+  useEffect(() => {
+    setSnapshot(sceneBinding.getSnapshot())
+
+    return sceneBinding.subscribe((nextSnapshot) => {
+      setSnapshot(nextSnapshot)
+    })
+  }, [sceneBinding])
+
+  const { turnLabel, statusLabel, statusDetail } = useMemo(
+    () => describeChessSceneStatus(snapshot),
+    [snapshot],
+  )
+  const lastMoveLabel = snapshot.lastMove
+    ? `${snapshot.lastMove.from} -> ${snapshot.lastMove.to}${
+        snapshot.lastMove.promotion === null
+          ? ''
+          : ` = ${snapshot.lastMove.promotion}`
+      }`
+    : 'Opening setup'
+
   return (
     <section className="board-stage" aria-labelledby="board-stage-title">
       <div className="board-stage__viewport">
         <div className="board-stage__glow" />
-        <ChessScene />
+        <ChessScene pieces={snapshot.pieces} />
       </div>
 
       <aside className="board-stage__rail">
         <div>
-          <p className="eyebrow">Issue C31-6</p>
-          <h2 id="board-stage-title">Opening Position</h2>
-          <p className="body-copy">
-            The board foundation now renders a complete starting arrangement
-            with scene lighting, shadows, responsive canvas sizing, and stable
-            board-square mapping helpers for future move logic.
-          </p>
+          <p className="eyebrow">Issue C31-23</p>
+          <h2 id="board-stage-title">{turnLabel}</h2>
+          <p className="body-copy">{statusDetail}</p>
         </div>
 
         <div className="board-stage__notes" role="list">
           <span className="board-chip" role="listitem">
-            32 modeled pieces
+            Engine binding live
           </span>
           <span className="board-chip" role="listitem">
-            Shadow-casting lights
+            {`${snapshot.pieces.length} scene pieces`}
           </span>
           <span className="board-chip" role="listitem">
-            Orbit camera controls
+            {snapshot.lastMove === null ? 'Opening position' : 'Move history live'}
           </span>
         </div>
 
         <dl className="board-stage__meta">
           <div className="board-stage__fact">
-            <dt>Pieces</dt>
-            <dd>{INITIAL_PIECES.length} in standard formation</dd>
+            <dt>Status</dt>
+            <dd>{statusLabel}</dd>
           </div>
           <div className="board-stage__fact">
-            <dt>Camera</dt>
-            <dd>White-side default angle with constrained orbit</dd>
+            <dt>Scene binding</dt>
+            <dd>{`${snapshot.pieces.length} pieces rendered from engine state`}</dd>
+          </div>
+          <div className="board-stage__fact">
+            <dt>Last move</dt>
+            <dd>{lastMoveLabel}</dd>
           </div>
           <div className="board-stage__fact">
             <dt>Layout helper</dt>
@@ -54,9 +93,9 @@ export function ChessBoardStage() {
         </dl>
 
         <p className="board-stage__callout">
-          Square helpers expose deterministic scene coordinates, so later game
-          state can place, animate, and select pieces without guessing where a
-          square lives in 3D space.
+          The board view now subscribes to the chess engine binding, so turn,
+          check, checkmate, and stalemate states stay in sync with the rendered
+          3D position.
         </p>
       </aside>
     </section>

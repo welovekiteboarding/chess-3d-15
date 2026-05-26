@@ -8,9 +8,9 @@ export function GameShellPage() {
 
       <div className="game-shell-page__footer">
         <p className="body-copy">
-          Foundation pass for graph task <code>chess-003</code>: the browser now
-          has a responsive 3D board, complete opening layout, and reusable
-          square-to-scene mapping helpers.
+          Graph task <code>chess-004c</code> now surfaces live engine state in
+          the game shell, including turn tracking plus check, checkmate, and
+          stalemate status messaging beside the 3D board.
         </p>
 
         <Link className="secondary-link" to="/">
