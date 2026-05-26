@@ -32,6 +32,13 @@ describe('app routes', () => {
     renderRoute('/game')
 
     expect(screen.getByText(/3d chess board foundation/i)).toBeInTheDocument()
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.tagName.toLowerCase() === 'code' && content.trim() === 'chess-004'
+        )
+      }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute(
       'href',
       '/',

@@ -63,11 +63,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-26')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-8')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-005b',
+      'chess-004',
     )
-    expect(screen.getByText('Issue C31-26').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-8').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
