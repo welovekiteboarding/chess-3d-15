@@ -3,18 +3,26 @@ import {
   createChessSceneBinding,
   describeChessSceneStatus,
 } from '../../domain/chessScene'
+import { createChessSceneHighlights } from '../../scene/chessSceneHighlights'
 import { ChessScene } from '../../scene/ChessScene'
 import { squareToScenePosition } from '../../scene/boardCoordinates'
+import {
+  createChessInteractionState,
+  deriveChessInteractionSnapshot,
+  selectChessInteractionSquare,
+  syncChessInteractionState,
+} from '../../state/chessInteraction'
 import type {
   ChessGameState,
   ChessSceneBinding,
   ChessSceneLastMove,
+  ChessSquare,
 } from '../../types/chess'
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-24'
-const GRAPH_TASK_ID = 'chess-004d'
+const LINEAR_ISSUE_ID = 'C31-25'
+const GRAPH_TASK_ID = 'chess-005a'
 
 interface ChessBoardStageProps {
   initialGame?: ChessGameState
@@ -30,12 +38,21 @@ export function ChessBoardStage({
     [binding, initialGame],
   )
   const [snapshot, setSnapshot] = useState(() => sceneBinding.getSnapshot())
+  const [interactionState, setInteractionState] = useState(() =>
+    createChessInteractionState(),
+  )
 
   useEffect(() => {
     setSnapshot(sceneBinding.getSnapshot())
+    setInteractionState((current) =>
+      syncChessInteractionState(sceneBinding.getGame(), current),
+    )
 
     return sceneBinding.subscribe((nextSnapshot) => {
       setSnapshot(nextSnapshot)
+      setInteractionState((current) =>
+        syncChessInteractionState(sceneBinding.getGame(), current),
+      )
     })
   }, [sceneBinding])
 
@@ -43,15 +60,35 @@ export function ChessBoardStage({
     () => describeChessSceneStatus(snapshot),
     [snapshot],
   )
+  const interactionSnapshot = useMemo(
+    () =>
+      deriveChessInteractionSnapshot(sceneBinding.getGame(), interactionState),
+    [interactionState, sceneBinding, snapshot],
+  )
+  const sceneHighlights = useMemo(
+    () => createChessSceneHighlights(interactionSnapshot),
+    [interactionSnapshot],
+  )
   const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
   const moveChipLabel =
     snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
+
+  function handleSquareSelect(square: ChessSquare) {
+    setInteractionState((current) =>
+      selectChessInteractionSquare(sceneBinding.getGame(), current, square),
+    )
+  }
 
   return (
     <section className="board-stage" aria-labelledby="board-stage-title">
       <div className="board-stage__viewport">
         <div className="board-stage__glow" />
-        <ChessScene pieces={snapshot.pieces} />
+        <ChessScene
+          highlightedSquares={sceneHighlights}
+          onSquareSelect={handleSquareSelect}
+          pieces={snapshot.pieces}
+          selectedSquare={interactionSnapshot.selectedSquare}
+        />
       </div>
 
       <aside
@@ -105,9 +142,9 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> wires the engine binding into
-          the live 3D board surface so turn, status, and move history stay in
-          sync with the rendered position.
+          Graph task <code>{GRAPH_TASK_ID}</code> adds the first interaction
+          seam so piece selection and legal-destination highlights stay in sync
+          with the rendered position.
         </p>
       </aside>
     </section>

@@ -5,6 +5,8 @@ import { PCFSoftShadowMap } from 'three'
 import { ChessBoardModel } from './ChessBoardModel'
 import { ChessPieceRack } from './ChessPieceModel'
 import type { ChessScenePiece } from '../types/chess'
+import type { BoardSquare } from './boardCoordinates'
+import type { ChessSceneSquareHighlight } from './chessSceneHighlights'
 
 function CameraControls() {
   const { camera, gl } = useThree()
@@ -78,9 +80,17 @@ function ChessLights() {
 
 interface ChessSceneProps {
   pieces: ReadonlyArray<ChessScenePiece>
+  highlightedSquares?: ReadonlyArray<ChessSceneSquareHighlight>
+  onSquareSelect?: (square: BoardSquare) => void
+  selectedSquare?: BoardSquare | null
 }
 
-export function ChessScene({ pieces }: ChessSceneProps) {
+export function ChessScene({
+  pieces,
+  highlightedSquares = [],
+  onSquareSelect,
+  selectedSquare = null,
+}: ChessSceneProps) {
   return (
     <Canvas
       camera={{ fov: 34, near: 0.1, far: 40, position: [7.4, 7.8, 8.6] }}
@@ -90,13 +100,21 @@ export function ChessScene({ pieces }: ChessSceneProps) {
       onCreated={({ gl }) => {
         gl.shadowMap.enabled = true
         gl.shadowMap.type = PCFSoftShadowMap
+        gl.domElement.style.touchAction = 'none'
       }}
       shadows
     >
       <ChessLights />
       <CameraControls />
-      <ChessBoardModel />
-      <ChessPieceRack pieces={pieces} />
+      <ChessBoardModel
+        highlights={highlightedSquares}
+        onSquareSelect={onSquareSelect}
+      />
+      <ChessPieceRack
+        onSquareSelect={onSquareSelect}
+        pieces={pieces}
+        selectedSquare={selectedSquare}
+      />
     </Canvas>
   )
 }
