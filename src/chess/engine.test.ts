@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyLegalMove,
+  applyLegalMoveState,
   createChessGame,
   generateLegalMoves,
+  generateSearchLegalMoves,
   getPieceAtSquare,
   isInCheck,
   makeMove,
@@ -12,6 +14,7 @@ import {
 import type {
   ChessGameOptions,
   ChessGameState,
+  LegalMove,
   ChessPiecePlacement,
   MoveInput,
 } from '../types/chess'
@@ -256,6 +259,50 @@ describe('checks and terminal states', () => {
     expect(game.winner).toBeNull()
     expect(isInCheck(game, 'black')).toBe(false)
     expect(generateLegalMoves(game)).toHaveLength(0)
+  })
+})
+
+describe('applyLegalMoveState', () => {
+  it('updates position fields for search without building full history', () => {
+    const game = createChessGame()
+    const move = generateLegalMoves(game, 'e2').find(
+      (legalMove) => legalMove.to === 'e4',
+    )
+
+    expect(move).toBeDefined()
+
+    const positionState = applyLegalMoveState(game, move!)
+    const nextGame = applyLegalMove(game, move!)
+
+    expect(positionState.pieces).toEqual(nextGame.pieces)
+    expect(positionState.turn).toBe(nextGame.turn)
+    expect(positionState.castlingRights).toEqual(nextGame.castlingRights)
+    expect(positionState.enPassantTarget).toBe(nextGame.enPassantTarget)
+    expect(positionState.halfmoveClock).toBe(nextGame.halfmoveClock)
+    expect(positionState.fullmoveNumber).toBe(nextGame.fullmoveNumber)
+  })
+})
+
+describe('generateSearchLegalMoves', () => {
+  it('returns the same legal move set without requiring outcome annotations', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+      ],
+      { turn: 'white' },
+    )
+
+    const moveKeys = (moves: LegalMove[]): string[] =>
+      moves
+        .map((move) => `${move.from}-${move.to}-${move.promotion ?? 'none'}`)
+        .sort()
+
+    expect(moveKeys(generateSearchLegalMoves(game))).toEqual(
+      moveKeys(generateLegalMoves(game)),
+    )
   })
 })
 

@@ -174,6 +174,34 @@ describe('selectAiMove', () => {
 
     expect(diagnostics.cacheHits).toBeGreaterThan(0)
   })
+
+  it('reuses cached positions during hard-mode alpha-beta search', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'a1', color: 'white', type: 'rook' },
+        { square: 'h1', color: 'white', type: 'rook' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+    const diagnostics = createAiSearchDiagnostics()
+
+    searchBestMove(
+      {
+        game,
+        difficulty: 'hard',
+        random: () => 0,
+      },
+      {
+        depth: AI_SEARCH_DEPTHS.hard,
+        alphaBetaPruning: true,
+        diagnostics,
+      },
+    )
+
+    expect(diagnostics.cacheHits).toBeGreaterThan(0)
+  })
 })
 
 describe('scoreEasyMove', () => {

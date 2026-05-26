@@ -14,6 +14,7 @@ import {
   type ChessMoveRecord,
   type ChessPiece,
   type ChessPiecePlacement,
+  type ChessPositionState,
   type ChessPositionSnapshot,
   type ChessSquare,
   type GameStatus,
@@ -129,13 +130,23 @@ export function createChessGame(
 }
 
 export function generateLegalMoves(
-  game: ChessGameState,
+  game: ChessPositionState,
   square?: string,
 ): LegalMove[] {
   const position = toInternalPosition(game)
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
   return generateLegalMovesInternal(position, targetSquare, true)
+}
+
+export function generateSearchLegalMoves(
+  game: ChessPositionState,
+  square?: string,
+): LegalMove[] {
+  const position = toInternalPosition(game)
+  const targetSquare = square === undefined ? undefined : parseSquare(square)
+
+  return generateLegalMovesInternal(position, targetSquare, false)
 }
 
 export function makeMove(
@@ -174,7 +185,7 @@ export function makeMove(
 }
 
 export function applyLegalMove(
-  game: ChessPositionSnapshot,
+  game: ChessPositionState,
   move: LegalMove,
 ): ChessGameState {
   const nextPosition = applyMoveToPosition(toInternalPosition(game), move)
@@ -183,6 +194,13 @@ export function applyLegalMove(
     ...createSnapshot(nextPosition),
     history: [],
   }
+}
+
+export function applyLegalMoveState(
+  game: ChessPositionState,
+  move: LegalMove,
+): ChessPositionState {
+  return createPositionState(applyMoveToPosition(toInternalPosition(game), move))
 }
 
 export function getPieceAtSquare(
@@ -197,7 +215,7 @@ export function getPieceAtSquare(
   }
 }
 
-export function isInCheck(game: ChessGameState, color: PieceColor): boolean {
+export function isInCheck(game: ChessPositionState, color: PieceColor): boolean {
   return isKingInCheck(toInternalPosition(game), color)
 }
 
@@ -309,9 +327,20 @@ function hasPiece(
   return piece?.color === color && piece.type === type
 }
 
-function toInternalPosition(position: ChessPositionSnapshot): InternalPosition {
+function toInternalPosition(position: ChessPositionState): InternalPosition {
   return {
     board: boardFromPieces(position.pieces),
+    turn: position.turn,
+    castlingRights: cloneCastlingRights(position.castlingRights),
+    enPassantTarget: position.enPassantTarget,
+    halfmoveClock: position.halfmoveClock,
+    fullmoveNumber: position.fullmoveNumber,
+  }
+}
+
+function createPositionState(position: InternalPosition): ChessPositionState {
+  return {
+    pieces: piecesFromBoard(position.board),
     turn: position.turn,
     castlingRights: cloneCastlingRights(position.castlingRights),
     enPassantTarget: position.enPassantTarget,
@@ -349,12 +378,7 @@ function createSnapshot(position: InternalPosition): ChessPositionSnapshot {
   }
 
   return {
-    pieces: piecesFromBoard(position.board),
-    turn: position.turn,
-    castlingRights: cloneCastlingRights(position.castlingRights),
-    enPassantTarget: position.enPassantTarget,
-    halfmoveClock: position.halfmoveClock,
-    fullmoveNumber: position.fullmoveNumber,
+    ...createPositionState(position),
     status,
     checkedColor,
     winner: status === 'checkmate' ? oppositeColor(position.turn) : null,
