@@ -99,6 +99,85 @@ describe('chessSquareSelectHandlers', () => {
     expect(onSquareSelect).not.toHaveBeenCalled()
   })
 
+  it('ignores mouse click selection after a long drag once the pointer already crossed the drag tolerance', () => {
+    const onSquareSelect = vi.fn()
+    const sourceHandlers = createChessSquareSelectHandlers('e4', onSquareSelect)
+    const targetHandlers = createChessSquareSelectHandlers('f4', onSquareSelect)
+
+    sourceHandlers.onPointerDown({
+      clientX: 120,
+      clientY: 84,
+      nativeEvent: {
+        clientX: 120,
+        clientY: 84,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 100,
+    })
+    targetHandlers.onPointerMove({
+      clientX: 142,
+      clientY: 84,
+      nativeEvent: {
+        clientX: 142,
+        clientY: 84,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 760,
+    })
+    targetHandlers.onClick({
+      clientX: 142,
+      clientY: 84,
+      nativeEvent: {
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 820,
+    })
+
+    expect(onSquareSelect).not.toHaveBeenCalled()
+  })
+
+  it('ignores mouse click selection after a drag returns near its starting point', () => {
+    const onSquareSelect = vi.fn()
+    const handlers = createChessSquareSelectHandlers('f4', onSquareSelect)
+
+    handlers.onPointerDown({
+      clientX: 220,
+      clientY: 144,
+      nativeEvent: {
+        clientX: 220,
+        clientY: 144,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 200,
+    })
+    handlers.onPointerMove({
+      clientX: 240,
+      clientY: 144,
+      nativeEvent: {
+        clientX: 240,
+        clientY: 144,
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 216,
+    })
+    handlers.onClick({
+      clientX: 223,
+      clientY: 147,
+      nativeEvent: {
+        pointerType: 'mouse',
+      },
+      stopPropagation() {},
+      timeStamp: 232,
+    })
+
+    expect(onSquareSelect).not.toHaveBeenCalled()
+  })
+
   it('keeps mouse click selection when the pointer stays within the click tolerance', () => {
     const onSquareSelect = vi.fn()
     const handlers = createChessSquareSelectHandlers('f4', onSquareSelect)

@@ -5,6 +5,8 @@ import {
 } from './chessInputDeduplication'
 
 const CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX = 6
+const CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX_SQUARED =
+  CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX * CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX
 const CHESS_MOUSE_CLICK_TRACKING_WINDOW_MS = 500
 
 interface ChessSquareSelectEvent {
@@ -31,11 +33,13 @@ interface ChessSquareSelectEvent {
 export interface ChessSquareSelectHandlerSet {
   onClick(event: ChessSquareSelectEvent): void
   onPointerDown(event: ChessSquareSelectEvent): void
+  onPointerMove(event: ChessSquareSelectEvent): void
 }
 
 interface ChessMousePointerDownSnapshot {
   clientX: number
   clientY: number
+  dragged: boolean
   timestampMs: number
 }
 
@@ -65,6 +69,9 @@ export function createChessSquareSelectHandlers(
     onPointerDown(event) {
       rememberMousePointerDown(event, onSquareSelect)
       dispatchChessSquareSelect(square, 'pointerdown', event, onSquareSelect)
+    },
+    onPointerMove(event) {
+      trackMousePointerDrag(event, onSquareSelect)
     },
   }
 }
@@ -190,8 +197,47 @@ function rememberMousePointerDown(
 
   mousePointerDownSnapshots.set(onSquareSelect, {
     ...coordinates,
+    dragged: false,
     timestampMs,
   })
+}
+
+function trackMousePointerDrag(
+  event: ChessSquareSelectEvent,
+  onSquareSelect?: ChessSquareSelectCallback,
+) {
+  if (onSquareSelect === undefined) {
+    return
+  }
+
+  const previousPointerDown = mousePointerDownSnapshots.get(onSquareSelect)
+
+  if (
+    previousPointerDown === undefined ||
+    previousPointerDown.dragged ||
+    resolveChessSquareSelectPointerType(event) !== 'mouse'
+  ) {
+    return
+  }
+
+  const coordinates = resolvePointerCoordinates(event)
+
+  if (coordinates === undefined) {
+    return
+  }
+
+  const deltaX = coordinates.clientX - previousPointerDown.clientX
+  const deltaY = coordinates.clientY - previousPointerDown.clientY
+
+  if (
+    deltaX * deltaX + deltaY * deltaY >
+    CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX_SQUARED
+  ) {
+    mousePointerDownSnapshots.set(onSquareSelect, {
+      ...previousPointerDown,
+      dragged: true,
+    })
+  }
 }
 
 function shouldIgnoreMouseClickAfterDrag(
@@ -208,6 +254,10 @@ function shouldIgnoreMouseClickAfterDrag(
 
   if (previousPointerDown === undefined) {
     return false
+  }
+
+  if (previousPointerDown.dragged) {
+    return true
   }
 
   const coordinates = resolvePointerCoordinates(event)
@@ -228,7 +278,7 @@ function shouldIgnoreMouseClickAfterDrag(
 
   return (
     deltaX * deltaX + deltaY * deltaY >
-    CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX * CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX
+    CHESS_MOUSE_CLICK_DRAG_TOLERANCE_PX_SQUARED
   )
 }
 
