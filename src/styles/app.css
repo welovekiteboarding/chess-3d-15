@@ -401,6 +401,46 @@ h1 {
   line-height: 1.5;
 }
 
+.board-stage__selection-group {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.board-stage__selection-legend {
+  padding: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.board-stage__selection-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
+.board-stage__selection-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(221, 181, 107, 0.16);
+  border-radius: 1rem;
+  background: rgba(247, 240, 224, 0.04);
+  color: #fff7e8;
+  cursor: pointer;
+}
+
+.board-stage__selection-option input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 @keyframes board-stage-invalid-pulse {
   0% {
     transform: scale(0.997);

@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  createChessAiMatchSettings,
+  describeChessAiMatchSettings,
+  type ChessAiMatchSettings,
+} from '../../ai/gameMode'
 import { getPieceAtSquare } from '../../chess/engine'
 import {
   type ChessAnimatedPieceMotion,
@@ -26,6 +31,7 @@ import {
   selectChessInteractionSquare,
   syncChessInteractionState,
 } from '../../state/chessInteraction'
+import { ChessAiMatchControls } from './ChessAiMatchControls'
 import type {
   ChessGameState,
   ChessSceneBinding,
@@ -35,8 +41,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-30'
-const GRAPH_TASK_ID = 'chess-008a'
+const LINEAR_ISSUE_ID = 'C31-29'
+const GRAPH_TASK_ID = 'chess-007a'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -44,12 +50,16 @@ interface ChessBoardStageProps {
   initialGame?: ChessGameState
   binding?: ChessSceneBinding
   controls?: ReactNode
+  aiMatchSettings?: ChessAiMatchSettings
+  onAiMatchSettingsChange?: (nextSettings: ChessAiMatchSettings) => void
 }
 
 export function ChessBoardStage({
   initialGame,
   binding,
   controls,
+  aiMatchSettings,
+  onAiMatchSettingsChange,
 }: ChessBoardStageProps) {
   const sceneBinding = useMemo(
     () => binding ?? createChessSceneBinding(initialGame),
@@ -61,6 +71,8 @@ export function ChessBoardStage({
   )
   const [interactionFeedbackTone, setInteractionFeedbackTone] =
     useState<InteractionFeedbackTone>('idle')
+  const [uncontrolledAiMatchSettings, setUncontrolledAiMatchSettings] =
+    useState<ChessAiMatchSettings>(() => createChessAiMatchSettings())
   const [animatedPieces, setAnimatedPieces] = useState<
     ReadonlyArray<ChessAnimatedPieceMotion>
   >([])
@@ -181,6 +193,20 @@ export function ChessBoardStage({
   const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
   const moveChipLabel =
     snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
+  const resolvedAiMatchSettings =
+    aiMatchSettings ?? uncontrolledAiMatchSettings
+  const aiMatchDescription = useMemo(
+    () => describeChessAiMatchSettings(resolvedAiMatchSettings),
+    [resolvedAiMatchSettings],
+  )
+
+  function handleAiMatchSettingsChange(nextSettings: ChessAiMatchSettings) {
+    if (aiMatchSettings === undefined) {
+      setUncontrolledAiMatchSettings(nextSettings)
+    }
+
+    onAiMatchSettingsChange?.(nextSettings)
+  }
 
   function handleSquareSelect(
     square: ChessSquare,
@@ -298,6 +324,14 @@ export function ChessBoardStage({
             <dd>{statusLabel}</dd>
           </div>
           <div className="board-stage__fact">
+            <dt>Match mode</dt>
+            <dd>{aiMatchDescription.modeLabel}</dd>
+          </div>
+          <div className="board-stage__fact">
+            <dt>AI difficulty</dt>
+            <dd>{aiMatchDescription.difficultyLabel}</dd>
+          </div>
+          <div className="board-stage__fact">
             <dt>Scene binding</dt>
             <dd>{`${snapshot.pieces.length} pieces rendered from engine state`}</dd>
           </div>
@@ -320,10 +354,15 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> adds the hint request seam so
-          the board can surface the recommended source and destination squares
-          for the current turn.
+          Graph task <code>{GRAPH_TASK_ID}</code> establishes the game-mode and
+          difficulty controls needed before automated AI turns are connected to
+          the live board.
         </p>
+
+        <ChessAiMatchControls
+          onChange={handleAiMatchSettingsChange}
+          value={resolvedAiMatchSettings}
+        />
 
         <div
           className={`board-stage__feedback${
