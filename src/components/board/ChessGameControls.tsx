@@ -46,6 +46,7 @@ export function ChessGameControls({
       <div className="board-stage__selection-grid">
         <button
           className="board-stage__selection-option"
+          disabled={!controlsState.canRestart}
           onClick={onRestart}
           type="button"
         >

@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createChessGame, makeMove } from '../../chess/engine'
 import { resignChessGame } from '../../chess/gameControls'
+import * as gameControls from '../../chess/gameControls'
 import { ChessGameControls } from './ChessGameControls'
 
 describe('ChessGameControls', () => {
@@ -80,5 +81,28 @@ describe('ChessGameControls', () => {
 
     expect(screen.getByRole('button', { name: 'Undo move' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Resign game' })).toBeDisabled()
+  })
+
+  it('honors restart availability from the shared controls state', () => {
+    const controlsStateSpy = vi
+      .spyOn(gameControls, 'createChessGameControlsState')
+      .mockReturnValue({
+        canRestart: false,
+        canResign: true,
+        canUndo: false,
+      })
+
+    render(
+      <ChessGameControls
+        game={createChessGame()}
+        onUndo={vi.fn()}
+        onRestart={vi.fn()}
+        onResign={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Restart game' })).toBeDisabled()
+
+    controlsStateSpy.mockRestore()
   })
 })
