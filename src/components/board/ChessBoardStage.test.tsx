@@ -116,14 +116,35 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-28')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-30')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-005d',
+      'chess-008a',
     )
-    expect(screen.getByText('Issue C31-28').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-30').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
+  })
+
+  it('lets the user request a hint and shows the recommended source and destination squares', () => {
+    render(
+      <ChessBoardStage
+        initialGame={createChessGame({
+          pieces: [
+            { square: 'g1', color: 'white', type: 'king' },
+            { square: 'd4', color: 'white', type: 'queen' },
+            { square: 'g8', color: 'black', type: 'king' },
+            { square: 'd7', color: 'black', type: 'rook' },
+          ],
+          turn: 'white',
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show hint' }))
+
+    expect(screen.getByText('Recommended move: d4 -> d7')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hide hint' })).toBeInTheDocument()
   })
 
   it('renders check status from the supplied engine state', () => {
