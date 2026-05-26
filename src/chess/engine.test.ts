@@ -287,7 +287,10 @@ describe('checks and terminal states', () => {
     expect(game.status).toBe('draw')
     expect(game.winner).toBeNull()
     expect(isInCheck(game, 'white')).toBe(false)
-    expect(generateLegalMoves(game).length).toBeGreaterThan(0)
+    expect(generateLegalMoves(game)).toEqual([])
+    expect(() => makeMove(game, { from: 'e1', to: 'e2' })).toThrow(
+      /illegal move/i,
+    )
   })
 })
 
@@ -327,6 +330,24 @@ describe('generateSearchLegalMoves', () => {
     expect(moveKeys(generateSearchLegalMoves(game))).toEqual(
       moveKeys(generateLegalMoves(game)),
     )
+  })
+
+  it('treats drawn positions as terminal in the search move generator', () => {
+    const game = createCustomGame(
+      [
+        { square: 'e1', color: 'white', type: 'king' },
+        { square: 'e8', color: 'black', type: 'king' },
+      ],
+      {
+        turn: 'white',
+        halfmoveClock: 100,
+      },
+    )
+
+    expect(generateSearchLegalMoves(game)).toEqual([])
+    expect(
+      generateSearchLegalMovesFromPosition(createSearchPosition(game)),
+    ).toEqual([])
   })
 })
 

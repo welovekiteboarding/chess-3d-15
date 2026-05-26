@@ -145,6 +145,10 @@ export function generateLegalMoves(
   game: ChessPositionState,
   square?: string,
 ): LegalMove[] {
+  if (isAutomaticDrawPosition(game)) {
+    return []
+  }
+
   const position = toInternalPosition(game)
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
@@ -259,6 +263,10 @@ export function generateSearchLegalMovesFromPosition(
   position: ChessSearchPosition,
   square?: string,
 ): LegalMove[] {
+  if (isAutomaticDrawPosition(position)) {
+    return []
+  }
+
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
   return generateLegalMovesInternal(
@@ -377,6 +385,12 @@ function deriveCastlingRights(board: BoardState): CastlingRightsByColor {
         hasPiece(board, 'a8', 'black', 'rook'),
     },
   }
+}
+
+function isAutomaticDrawPosition(
+  position: Pick<ChessPositionState, 'halfmoveClock'>,
+): boolean {
+  return position.halfmoveClock >= FIFTY_MOVE_DRAW_HALFMOVE_CLOCK
 }
 
 function hasPiece(
