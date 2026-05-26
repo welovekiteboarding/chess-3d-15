@@ -48,7 +48,9 @@ describe('app routes', () => {
     renderRoute('/game')
 
     expect(screen.getByText('Issue C31-33')).toBeInTheDocument()
-    expect(screen.getByText('Graph task chess-008d')).toBeInTheDocument()
+    expect(
+      screen.getByText(/Graph task chess-008d wires the reusable hint controls/i),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show hint' })).toBeInTheDocument()
   })
 })
