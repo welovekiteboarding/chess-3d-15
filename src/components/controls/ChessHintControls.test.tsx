@@ -20,6 +20,18 @@ describe('ChessHintControls', () => {
 
     render(<ChessHintControls binding={binding} />)
 
+    const clearSavedGameButton = screen.getByRole('button', {
+      name: 'Clear saved game',
+    })
+
+    expect(screen.getByText('Issue C31-46')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /No saved game is stored yet\. Your first move will create a local save on this device\./i,
+      ),
+    ).toBeInTheDocument()
+    expect(clearSavedGameButton).toBeDisabled()
+
     fireEvent.click(screen.getByRole('button', { name: 'Show hint' }))
 
     expect(screen.getByText('Recommended move: d4 -> d7')).toBeInTheDocument()
@@ -29,6 +41,10 @@ describe('ChessHintControls', () => {
       binding.move({ from: 'd4', to: 'd5' })
     })
 
+    expect(
+      screen.getByText(/Saved locally after 1 move: d4 -> d5\./i),
+    ).toBeInTheDocument()
+    expect(clearSavedGameButton).toBeEnabled()
     expect(screen.getByText('Recommended move: d7 -> d5')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide hint' }))
@@ -37,6 +53,9 @@ describe('ChessHintControls', () => {
       binding.move({ from: 'd7', to: 'd5' })
     })
 
+    expect(
+      screen.getByText(/Saved locally after 2 moves: d7 -> d5\./i),
+    ).toBeInTheDocument()
     expect(
       screen.getByText('Request a recommended move for the current player.'),
     ).toBeInTheDocument()

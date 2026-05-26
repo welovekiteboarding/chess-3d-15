@@ -7,6 +7,7 @@ import {
   syncChessHintState,
 } from '../../ai/hint'
 import type { ChessSceneBinding } from '../../types/chess'
+import { ChessPersistenceControls } from './ChessPersistenceControls'
 
 const LINEAR_ISSUE_ID = 'C31-33'
 const GRAPH_TASK_ID = 'chess-008d'
@@ -57,26 +58,29 @@ export function ChessHintControls({ binding }: ChessHintControlsProps) {
   }
 
   return (
-    <section
-      aria-labelledby="hint-controls-title"
-      className="board-stage__feedback"
-    >
-      <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
-      <p className="board-stage__feedback-title" id="hint-controls-title">
-        Hint mode
-      </p>
-      <p className="board-stage__feedback-detail">{hintDetail}</p>
-      <p className="board-stage__feedback-detail">
-        {`Graph task ${GRAPH_TASK_ID} wires the reusable hint controls into the live game shell.`}
-      </p>
-      <button
-        disabled={!canRequestHint}
-        onClick={handleHintToggle}
-        type="button"
+    <>
+      <ChessPersistenceControls binding={binding} />
+      <section
+        aria-labelledby="hint-controls-title"
+        className="board-stage__feedback"
       >
-        {hintState.isVisible ? 'Hide hint' : 'Show hint'}
-      </button>
-    </section>
+        <p className="eyebrow">{`Issue ${LINEAR_ISSUE_ID}`}</p>
+        <p className="board-stage__feedback-title" id="hint-controls-title">
+          Hint mode
+        </p>
+        <p className="board-stage__feedback-detail">{hintDetail}</p>
+        <p className="board-stage__feedback-detail">
+          {`Graph task ${GRAPH_TASK_ID} wires the reusable hint controls into the live game shell.`}
+        </p>
+        <button
+          disabled={!canRequestHint}
+          onClick={handleHintToggle}
+          type="button"
+        >
+          {hintState.isVisible ? 'Hide hint' : 'Show hint'}
+        </button>
+      </section>
+    </>
   )
 }
 
