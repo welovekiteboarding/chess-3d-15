@@ -448,14 +448,22 @@ function createSnapshot(position: InternalPosition): ChessPositionSnapshot {
   const checkedColor = isKingInCheck(position, position.turn)
     ? position.turn
     : null
+
+  if (isAutomaticDrawPosition(position)) {
+    return {
+      ...createPositionState(position),
+      status: 'draw',
+      checkedColor,
+      winner: null,
+    }
+  }
+
   const legalMoveCount = generateLegalMovesInternal(position, undefined, false)
     .length
   let status: GameStatus = 'active'
 
   if (legalMoveCount === 0) {
     status = checkedColor === null ? 'stalemate' : 'checkmate'
-  } else if (position.halfmoveClock >= FIFTY_MOVE_DRAW_HALFMOVE_CLOCK) {
-    status = 'draw'
   } else if (checkedColor !== null) {
     status = 'check'
   }

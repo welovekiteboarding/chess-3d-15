@@ -292,6 +292,25 @@ describe('checks and terminal states', () => {
       /illegal move/i,
     )
   })
+
+  it('keeps the automatic draw classification even when the side to move also has no legal moves', () => {
+    const game = createCustomGame(
+      [
+        { square: 'f7', color: 'white', type: 'king' },
+        { square: 'g6', color: 'white', type: 'queen' },
+        { square: 'h8', color: 'black', type: 'king' },
+      ],
+      {
+        turn: 'black',
+        halfmoveClock: 100,
+      },
+    )
+
+    expect(game.status).toBe('draw')
+    expect(game.checkedColor).toBeNull()
+    expect(game.winner).toBeNull()
+    expect(generateLegalMoves(game)).toEqual([])
+  })
 })
 
 describe('applyLegalMoveState', () => {
