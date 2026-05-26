@@ -1,13 +1,18 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createChessAiMatchSettings } from '../../ai/gameMode'
-import { createChessGame, makeMove } from '../../chess/engine'
+import {
+  createChessGame,
+  generateLegalMoves,
+  makeMove,
+} from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
 import {
   resolveChessSquareSelectPointerType,
   type ChessSquareSelectInput,
 } from '../../input/chessInputDeduplication'
-import type { ChessGameState, MoveInput } from '../../types/chess'
+import type { ChessGameState, LegalMove, MoveInput } from '../../types/chess'
+import { CHESS_MOVE_ANIMATION_DURATION_MS } from '../game/chessMoveAnimations'
 import { ChessBoardStage } from './ChessBoardStage'
 
 vi.mock('../../scene/ChessScene', () => ({
@@ -97,6 +102,34 @@ function playMoves(game: ChessGameState, moves: MoveInput[]): ChessGameState {
   return moves.reduce((state, move) => makeMove(state, move), game)
 }
 
+function findLegalMove(
+  game: ChessGameState,
+  from: string,
+  to: string,
+): LegalMove {
+  const move = generateLegalMoves(game).find(
+    (candidate) => candidate.from === from && candidate.to === to,
+  )
+
+  if (move === undefined) {
+    throw new Error(`Expected ${from} -> ${to} to be legal`)
+  }
+
+  return move
+}
+
+function createDeferredMove() {
+  let resolve!: (move: LegalMove) => void
+  const promise = new Promise<LegalMove>((nextResolve) => {
+    resolve = nextResolve
+  })
+
+  return {
+    promise,
+    resolve,
+  }
+}
+
 describe('ChessBoardStage', () => {
   it('renders the current turn and engine-backed starting snapshot', () => {
     render(<ChessBoardStage />)
@@ -117,11 +150,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-29')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-34')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-007a',
+      'chess-007b',
     )
-    expect(screen.getByText('Issue C31-29').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-34').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -157,6 +190,65 @@ describe('ChessBoardStage', () => {
         difficulty: 'hard',
       }),
     )
+  })
+
+  it('shows AI thinking and applies an AI reply after the human move animation completes', async () => {
+    vi.useFakeTimers()
+
+    const pendingMove = createDeferredMove()
+    const aiMoveClient = {
+      dispose: vi.fn(),
+      selectMove: vi.fn(() => pendingMove.promise),
+    }
+
+    render(
+      <ChessBoardStage
+        aiMatchSettings={createChessAiMatchSettings({
+          mode: 'human-vs-ai',
+          difficulty: 'hard',
+        })}
+        createAiMoveClient={() => aiMoveClient}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Black to move' }),
+    ).toBeInTheDocument()
+    expect(aiMoveClient.selectMove).not.toHaveBeenCalled()
+    expect(screen.queryByText('AI thinking')).not.toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(CHESS_MOVE_ANIMATION_DURATION_MS)
+    })
+
+    expect(aiMoveClient.selectMove).toHaveBeenCalledTimes(1)
+    expect(aiMoveClient.selectMove).toHaveBeenCalledWith(
+      expect.objectContaining({
+        difficulty: 'hard',
+      }),
+    )
+    expect(screen.getAllByText('AI thinking')).not.toHaveLength(0)
+
+    const gameAfterHumanMove = playMoves(createChessGame(), [
+      { from: 'e2', to: 'e4' },
+    ])
+
+    await act(async () => {
+      pendingMove.resolve(findLegalMove(gameAfterHumanMove, 'e7', 'e5'))
+      await pendingMove.promise
+    })
+
+    expect(screen.getByText('Last move: e7 -> e5')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'White to move' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('AI thinking')).not.toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it('renders injected controls inside the live board rail', () => {

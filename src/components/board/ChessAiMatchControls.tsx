@@ -8,32 +8,36 @@ import {
 } from '../../ai/gameMode'
 
 interface ChessAiMatchControlsProps {
+  isThinking?: boolean
   value: ChessAiMatchSettings
   onChange: (nextValue: ChessAiMatchSettings) => void
 }
 
 export function ChessAiMatchControls({
+  isThinking = false,
   value,
   onChange,
 }: ChessAiMatchControlsProps) {
-  const description = describeChessAiMatchSettings(value)
+  const description = describeChessAiMatchSettings(value, {
+    isThinking,
+  })
 
   return (
     <section
       aria-labelledby="ai-match-controls-title"
       className="board-stage__feedback"
     >
-      <p className="eyebrow">Graph task chess-007a</p>
+      <p className="eyebrow">Graph task chess-007b</p>
       <p className="board-stage__feedback-title" id="ai-match-controls-title">
-        Human vs AI foundation
+        Human vs AI
       </p>
       <p className="board-stage__feedback-detail">{description.statusLabel}</p>
       <p className="board-stage__feedback-detail">
         {description.statusDetail}
       </p>
       <p className="board-stage__feedback-detail">
-        Graph task chess-007a adds the mode and difficulty selection seams
-        before automated AI turns are wired into live play.
+        Graph task chess-007b connects one automated AI reply after each
+        completed human move.
       </p>
 
       <fieldset className="board-stage__selection-group">

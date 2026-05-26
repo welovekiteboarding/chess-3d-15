@@ -4,7 +4,13 @@ import {
   describeChessAiMatchSettings,
   type ChessAiMatchSettings,
 } from '../../ai/gameMode'
-import { getPieceAtSquare } from '../../chess/engine'
+import {
+  createChessAiMoveClient,
+  createChessAiRandomSeed,
+  isChessAiControlledTurn,
+  type ChessAiMoveClient,
+} from '../../ai/liveMatch'
+import { createChessPositionKey, getPieceAtSquare } from '../../chess/engine'
 import {
   type ChessAnimatedPieceMotion,
   CHESS_MOVE_ANIMATION_DURATION_MS,
@@ -41,8 +47,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-29'
-const GRAPH_TASK_ID = 'chess-007a'
+const LINEAR_ISSUE_ID = 'C31-34'
+const GRAPH_TASK_ID = 'chess-007b'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -52,6 +58,7 @@ interface ChessBoardStageProps {
   controls?: ReactNode
   aiMatchSettings?: ChessAiMatchSettings
   onAiMatchSettingsChange?: (nextSettings: ChessAiMatchSettings) => void
+  createAiMoveClient?: () => ChessAiMoveClient
 }
 
 export function ChessBoardStage({
@@ -60,6 +67,7 @@ export function ChessBoardStage({
   controls,
   aiMatchSettings,
   onAiMatchSettingsChange,
+  createAiMoveClient = createChessAiMoveClient,
 }: ChessBoardStageProps) {
   const sceneBinding = useMemo(
     () => binding ?? createChessSceneBinding(initialGame),
@@ -71,17 +79,21 @@ export function ChessBoardStage({
   )
   const [interactionFeedbackTone, setInteractionFeedbackTone] =
     useState<InteractionFeedbackTone>('idle')
+  const [isAiThinking, setIsAiThinking] = useState(false)
   const [uncontrolledAiMatchSettings, setUncontrolledAiMatchSettings] =
     useState<ChessAiMatchSettings>(() => createChessAiMatchSettings())
   const [animatedPieces, setAnimatedPieces] = useState<
     ReadonlyArray<ChessAnimatedPieceMotion>
   >([])
+  const aiMoveClientRef = useRef<ChessAiMoveClient | null>(null)
   const previousMoveIndexRef = useRef(0)
   const previousSquareSelectRef = useRef<ChessHandledSquareSelect | null>(null)
   const relativeEventTimestampOffsetRef = useRef<number | null>(null)
   const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   )
+  const resolvedAiMatchSettings =
+    aiMatchSettings ?? uncontrolledAiMatchSettings
 
   useEffect(() => {
     const initialSnapshot = sceneBinding.getSnapshot()
@@ -100,6 +112,7 @@ export function ChessBoardStage({
       syncChessInteractionState(initialGame, current),
     )
     setInteractionFeedbackTone('idle')
+    setIsAiThinking(false)
     setAnimatedPieces([])
 
     return sceneBinding.subscribe((nextSnapshot) => {
@@ -127,6 +140,13 @@ export function ChessBoardStage({
   }, [sceneBinding])
 
   useEffect(() => {
+    return () => {
+      aiMoveClientRef.current?.dispose()
+      aiMoveClientRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
     if (animationTimeoutRef.current !== null) {
       clearTimeout(animationTimeoutRef.current)
       animationTimeoutRef.current = null
@@ -149,6 +169,73 @@ export function ChessBoardStage({
     }
   }, [animatedPieces])
 
+  const currentGame = sceneBinding.getGame()
+  const aiTurnKey = isChessAiControlledTurn(resolvedAiMatchSettings, currentGame)
+    ? createChessPositionKey(currentGame)
+    : null
+
+  useEffect(() => {
+    if (aiTurnKey === null) {
+      setIsAiThinking(false)
+      return
+    }
+
+    const game = sceneBinding.getGame()
+    let cancelled = false
+
+    const timeoutId = setTimeout(() => {
+      if (cancelled) {
+        return
+      }
+
+      setIsAiThinking(true)
+
+      const aiMoveClient = aiMoveClientRef.current ?? createAiMoveClient()
+
+      aiMoveClientRef.current = aiMoveClient
+
+      void aiMoveClient
+        .selectMove({
+          difficulty: resolvedAiMatchSettings.difficulty,
+          game,
+          randomSeed: createChessAiRandomSeed(game),
+        })
+        .then((move) => {
+          if (cancelled) {
+            return
+          }
+
+          sceneBinding.move({
+            from: move.from,
+            to: move.to,
+            ...(move.promotion === null
+              ? {}
+              : { promotion: move.promotion }),
+          })
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setIsAiThinking(false)
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setIsAiThinking(false)
+          }
+        })
+    }, CHESS_MOVE_ANIMATION_DURATION_MS)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [
+    aiTurnKey,
+    createAiMoveClient,
+    resolvedAiMatchSettings.difficulty,
+    sceneBinding,
+  ])
+
   const { turnLabel, statusLabel, statusDetail } = useMemo(
     () => describeChessSceneStatus(snapshot),
     [snapshot],
@@ -158,9 +245,8 @@ export function ChessBoardStage({
     [animatedPieces, snapshot.pieces],
   )
   const interactionSnapshot = useMemo(
-    () =>
-      deriveChessInteractionSnapshot(sceneBinding.getGame(), interactionState),
-    [interactionState, sceneBinding],
+    () => deriveChessInteractionSnapshot(currentGame, interactionState),
+    [interactionState, currentGame],
   )
   const sceneHighlights = useMemo(
     () => createChessSceneHighlights(interactionSnapshot),
@@ -192,12 +278,15 @@ export function ChessBoardStage({
   }, [interactionFeedbackTone, interactionSnapshot])
   const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
   const moveChipLabel =
-    snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
-  const resolvedAiMatchSettings =
-    aiMatchSettings ?? uncontrolledAiMatchSettings
+    snapshot.lastMove === null
+      ? 'Opening position'
+      : `Last move: ${lastMoveLabel}`
   const aiMatchDescription = useMemo(
-    () => describeChessAiMatchSettings(resolvedAiMatchSettings),
-    [resolvedAiMatchSettings],
+    () =>
+      describeChessAiMatchSettings(resolvedAiMatchSettings, {
+        isThinking: isAiThinking,
+      }),
+    [isAiThinking, resolvedAiMatchSettings],
   )
 
   function handleAiMatchSettingsChange(nextSettings: ChessAiMatchSettings) {
@@ -213,6 +302,11 @@ export function ChessBoardStage({
     input?: ChessSquareSelectInput,
   ) {
     const game = sceneBinding.getGame()
+
+    if (isChessAiControlledTurn(resolvedAiMatchSettings, game)) {
+      return
+    }
+
     const timestampResolution = resolveChessHandledSquareSelectTimestampMs(
       input?.timestampMs,
       Date.now(),
@@ -304,6 +398,11 @@ export function ChessBoardStage({
           <span className="board-chip" role="listitem">
             {statusLabel}
           </span>
+          {isAiThinking ? (
+            <span className="board-chip" role="listitem">
+              AI thinking
+            </span>
+          ) : null}
           <span className="board-chip" role="listitem">
             {`${snapshot.pieces.length} scene pieces`}
           </span>
@@ -354,12 +453,13 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> establishes the game-mode and
-          difficulty controls needed before automated AI turns are connected to
-          the live board.
+          Graph task <code>{GRAPH_TASK_ID}</code> connects the first live
+          human-versus-AI move loop, with the AI replying after each completed
+          human turn.
         </p>
 
         <ChessAiMatchControls
+          isThinking={isAiThinking}
           onChange={handleAiMatchSettingsChange}
           value={resolvedAiMatchSettings}
         />
