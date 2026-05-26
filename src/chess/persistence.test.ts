@@ -97,4 +97,50 @@ describe('createPersistedChessSceneBinding', () => {
       ),
     ).toBeDefined()
   })
+
+  it('restarts back to a fresh game after restoring a saved game', () => {
+    const storage = createMemoryStorage()
+    const firstBinding = createPersistedChessSceneBinding({
+      persistence: createChessGamePersistence({ storage }),
+    })
+
+    firstBinding.move({ from: 'e2', to: 'e4' })
+    firstBinding.move({ from: 'e7', to: 'e5' })
+
+    const restoredBinding = createPersistedChessSceneBinding({
+      persistence: createChessGamePersistence({ storage }),
+    })
+
+    restoredBinding.restart()
+
+    const restartedBinding = createPersistedChessSceneBinding({
+      persistence: createChessGamePersistence({ storage }),
+    })
+    const restartedGame = restartedBinding.getGame()
+
+    expect(restartedGame.turn).toBe('white')
+    expect(restartedGame.history).toHaveLength(0)
+    expect(
+      restartedGame.pieces.find(
+        (piece) =>
+          piece.square === 'e2' &&
+          piece.color === 'white' &&
+          piece.type === 'pawn',
+      ),
+    ).toBeDefined()
+    expect(
+      restartedGame.pieces.find(
+        (piece) =>
+          piece.square === 'e7' &&
+          piece.color === 'black' &&
+          piece.type === 'pawn',
+      ),
+    ).toBeDefined()
+    expect(
+      restartedGame.pieces.find((piece) => piece.square === 'e4'),
+    ).toBeUndefined()
+    expect(
+      restartedGame.pieces.find((piece) => piece.square === 'e5'),
+    ).toBeUndefined()
+  })
 })

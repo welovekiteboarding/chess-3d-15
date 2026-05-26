@@ -17,6 +17,8 @@ import type {
   ChessPiecePlacement,
   ChessPositionSnapshot,
   ChessSceneBinding,
+  ChessSceneListener,
+  ChessSceneSnapshot,
   ChessSquare,
   GameStatus,
   MoveInput,
@@ -97,16 +99,74 @@ export function createPersistedChessSceneBinding(
   options: CreatePersistedChessSceneBindingOptions = {},
 ): ChessSceneBinding {
   const persistence = options.persistence ?? createChessGamePersistence()
-  const initialGame =
-    persistence.load() ?? options.initialGame ?? createChessGame()
-  const binding = createChessSceneBinding(initialGame)
+  const startingGame = cloneChessGameState(
+    options.initialGame ?? createChessGame(),
+  )
+  const restoredGame = persistence.load()
+  const listeners = new Set<ChessSceneListener>()
+  let activeBinding = createChessSceneBinding(restoredGame ?? startingGame)
+  let unsubscribeFromActiveBinding = subscribeToPersistedBinding(
+    activeBinding,
+    listeners,
+    persistence,
+  )
 
-  persistence.save(binding.getGame())
-  binding.subscribe(() => {
+  return {
+    getGame() {
+      return activeBinding.getGame()
+    },
+    getSnapshot() {
+      return activeBinding.getSnapshot()
+    },
+    move(input) {
+      return activeBinding.move(input)
+    },
+    undo(plies = 1) {
+      return activeBinding.undo(plies)
+    },
+    restart() {
+      unsubscribeFromActiveBinding()
+      activeBinding = createChessSceneBinding(startingGame)
+      unsubscribeFromActiveBinding = subscribeToPersistedBinding(
+        activeBinding,
+        listeners,
+        persistence,
+      )
+
+      return activeBinding.getSnapshot()
+    },
+    resign(resignedColor) {
+      return activeBinding.resign(resignedColor)
+    },
+    subscribe(listener) {
+      listeners.add(listener)
+      listener(activeBinding.getSnapshot())
+
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+  }
+}
+
+function subscribeToPersistedBinding(
+  binding: ChessSceneBinding,
+  listeners: Set<ChessSceneListener>,
+  persistence: ChessGamePersistence,
+): () => void {
+  return binding.subscribe((snapshot) => {
     persistence.save(binding.getGame())
+    notifyChessSceneListeners(listeners, snapshot)
   })
+}
 
-  return binding
+function notifyChessSceneListeners(
+  listeners: Set<ChessSceneListener>,
+  snapshot: ChessSceneSnapshot,
+): void {
+  for (const listener of listeners) {
+    listener(cloneChessSceneSnapshot(snapshot))
+  }
 }
 
 function createPersistedChessGame(
@@ -488,6 +548,26 @@ function readOneOf<T extends string>(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function cloneChessSceneSnapshot(
+  snapshot: ChessSceneSnapshot,
+): ChessSceneSnapshot {
+  return {
+    pieces: snapshot.pieces.map(cloneChessPiecePlacement),
+    turn: snapshot.turn,
+    status: snapshot.status,
+    checkedColor: snapshot.checkedColor,
+    winner: snapshot.winner,
+    lastMove:
+      snapshot.lastMove === null
+        ? null
+        : {
+            from: snapshot.lastMove.from,
+            to: snapshot.lastMove.to,
+            promotion: snapshot.lastMove.promotion,
+          },
+  }
 }
 
 function cloneChessGameState(game: ChessGameState): ChessGameState {
