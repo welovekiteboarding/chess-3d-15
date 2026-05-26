@@ -299,6 +299,20 @@ describe('describeChessSceneStatus', () => {
       statusLabel: 'Checkmate',
       statusDetail: 'Black wins. White has no legal move to escape check.',
     })
+
+    expect(
+      describeChessSceneStatus({
+        turn: 'white',
+        status: 'draw',
+        checkedColor: null,
+        winner: null,
+      }),
+    ).toEqual({
+      turnLabel: 'White to move',
+      statusLabel: 'Draw',
+      statusDetail:
+        'The game is drawn by the fifty-move rule after 50 quiet moves by each side.',
+    })
   })
 
   it('describes active and check positions for UI consumers', () => {
@@ -328,7 +342,7 @@ describe('describeChessSceneStatus', () => {
     })
   })
 
-  it('describes checkmate and stalemate positions for UI consumers', () => {
+  it('describes checkmate, stalemate, and draw positions for UI consumers', () => {
     const checkmateGame = playMoves(createChessGame(), [
       { from: 'f2', to: 'f3' },
       { from: 'e7', to: 'e5' },
@@ -342,6 +356,13 @@ describe('describeChessSceneStatus', () => {
         { square: 'h8', color: 'black', type: 'king' },
       ],
       turn: 'black',
+    })
+    const drawGame = createChessGame({
+      pieces: [
+        { square: 'e1', color: 'white', type: 'king' },
+        { square: 'e8', color: 'black', type: 'king' },
+      ],
+      halfmoveClock: 100,
     })
 
     expect(
@@ -357,6 +378,12 @@ describe('describeChessSceneStatus', () => {
       turnLabel: 'Black to move',
       statusLabel: 'Stalemate',
       statusDetail: 'Black has no legal moves, and neither king is in check.',
+    })
+    expect(describeChessSceneStatus(createChessSceneSnapshot(drawGame))).toEqual({
+      turnLabel: 'White to move',
+      statusLabel: 'Draw',
+      statusDetail:
+        'The game is drawn by the fifty-move rule after 50 quiet moves by each side.',
     })
   })
 })

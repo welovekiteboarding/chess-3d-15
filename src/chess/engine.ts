@@ -113,6 +113,7 @@ const ROOK_DIRECTIONS = [
 ] as const
 
 const QUEEN_DIRECTIONS = [...BISHOP_DIRECTIONS, ...ROOK_DIRECTIONS] as const
+const FIFTY_MOVE_DRAW_HALFMOVE_CLOCK = 100
 
 export function createChessGame(
   options: ChessGameOptions = {},
@@ -439,6 +440,8 @@ function createSnapshot(position: InternalPosition): ChessPositionSnapshot {
 
   if (legalMoveCount === 0) {
     status = checkedColor === null ? 'stalemate' : 'checkmate'
+  } else if (position.halfmoveClock >= FIFTY_MOVE_DRAW_HALFMOVE_CLOCK) {
+    status = 'draw'
   } else if (checkedColor !== null) {
     status = 'check'
   }

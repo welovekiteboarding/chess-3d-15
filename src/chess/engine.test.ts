@@ -271,6 +271,24 @@ describe('checks and terminal states', () => {
     expect(isInCheck(game, 'black')).toBe(false)
     expect(generateLegalMoves(game)).toHaveLength(0)
   })
+
+  it('detects a draw when the fifty-move clock reaches the automatic draw threshold', () => {
+    const game = createCustomGame(
+      [
+        { square: 'e1', color: 'white', type: 'king' },
+        { square: 'e8', color: 'black', type: 'king' },
+      ],
+      {
+        turn: 'white',
+        halfmoveClock: 100,
+      },
+    )
+
+    expect(game.status).toBe('draw')
+    expect(game.winner).toBeNull()
+    expect(isInCheck(game, 'white')).toBe(false)
+    expect(generateLegalMoves(game).length).toBeGreaterThan(0)
+  })
 })
 
 describe('applyLegalMoveState', () => {

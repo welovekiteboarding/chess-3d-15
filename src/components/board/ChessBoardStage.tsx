@@ -47,8 +47,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-34'
-const GRAPH_TASK_ID = 'chess-007b'
+const LINEAR_ISSUE_ID = 'C31-35'
+const GRAPH_TASK_ID = 'chess-007c'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -303,7 +303,10 @@ export function ChessBoardStage({
   ) {
     const game = sceneBinding.getGame()
 
-    if (isChessAiControlledTurn(resolvedAiMatchSettings, game)) {
+    if (
+      isAiThinking ||
+      isChessAiControlledTurn(resolvedAiMatchSettings, game)
+    ) {
       return
     }
 
@@ -453,9 +456,9 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> connects the first live
-          human-versus-AI move loop, with the AI replying after each completed
-          human turn.
+          Graph task <code>{GRAPH_TASK_ID}</code> locks the board while the AI
+          is evaluating and keeps terminal human, AI, stalemate, and draw
+          outcomes aligned with engine state.
         </p>
 
         <ChessAiMatchControls

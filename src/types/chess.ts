@@ -8,7 +8,12 @@ export type ChessSquare = `${ChessFile}${ChessRank}`
 export type PieceColor = 'white' | 'black'
 export type PieceType = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn'
 export type PromotionPieceType = Exclude<PieceType, 'king' | 'pawn'>
-export type GameStatus = 'active' | 'check' | 'checkmate' | 'stalemate'
+export type GameStatus =
+  | 'active'
+  | 'check'
+  | 'checkmate'
+  | 'stalemate'
+  | 'draw'
 
 export interface ChessPiece {
   color: PieceColor
