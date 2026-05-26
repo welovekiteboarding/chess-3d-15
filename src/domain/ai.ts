@@ -22,7 +22,24 @@ const SEARCH_CHECK_BONUS = 0.5
 const SEARCH_CENTER_CONTROL_BONUS = 0.15
 const SEARCH_PAWN_ADVANCEMENT_BONUS = 0.05
 const SEARCH_CHECKMATE_SCORE = 1_000_000
+const AI_SEARCH_POSITION_BUDGETS = {
+  medium: 3_000,
+  hard: 12_000,
+} as const
 const CENTER_SQUARES = new Set<ChessSquare>(['d4', 'd5', 'e4', 'e5'])
+
+interface SearchContext {
+  maximizingColor: PieceColor
+  useAlphaBeta: boolean
+  maxPositions: number | null
+  positionsEvaluated: number
+  alphaBetaCutoffs: number
+  cacheHits: number
+  terminatedEarly: boolean
+  diagnostics?: AiSearchDiagnostics
+  transpositionTable: Map<string, number>
+  allowTranspositionCache: boolean
+}
 
 export const AI_SEARCH_DEPTHS = {
   medium: 2,
@@ -51,13 +68,18 @@ export function selectAiMove(request: AiMoveRequest): LegalMove {
     throw new Error('AI cannot select a move from a terminal position')
   }
 
-  return AI_MOVE_SELECTORS[request.difficulty](request, legalMoves)
+  return normalizeLegalSelection(
+    AI_MOVE_SELECTORS[request.difficulty](request, legalMoves),
+    legalMoves,
+  )
 }
 
 export function createAiSearchDiagnostics(): AiSearchDiagnostics {
   return {
     positionsEvaluated: 0,
     alphaBetaCutoffs: 0,
+    cacheHits: 0,
+    terminatedEarly: false,
   }
 }
 
@@ -105,7 +127,7 @@ export function rankEasyMoves(legalMoves: LegalMove[]): AiScoredMove[] {
       move,
       score: scoreEasyMove(move),
     }))
-    .sort((left, right) => right.score - left.score)
+    .sort(compareScoredMoves)
 }
 
 export function searchBestMove(
@@ -118,7 +140,10 @@ export function searchBestMove(
     throw new Error('AI cannot select a move from a terminal position')
   }
 
-  return selectSearchMove(request, legalMoves, options)
+  return normalizeLegalSelection(
+    selectSearchMove(request, legalMoves, options),
+    legalMoves,
+  )
 }
 
 function selectEasyMove(
@@ -140,6 +165,7 @@ function selectMediumMove(
 ): LegalMove {
   return selectSearchMove(request, legalMoves, {
     depth: AI_SEARCH_DEPTHS.medium,
+    maxPositions: AI_SEARCH_POSITION_BUDGETS.medium,
   })
 }
 
@@ -150,6 +176,7 @@ function selectHardMove(
   return selectSearchMove(request, legalMoves, {
     depth: AI_SEARCH_DEPTHS.hard,
     alphaBetaPruning: true,
+    maxPositions: AI_SEARCH_POSITION_BUDGETS.hard,
   })
 }
 
@@ -159,24 +186,27 @@ function selectSearchMove(
   options: AiSearchOptions,
 ): LegalMove {
   const random = request.random ?? Math.random
-  const maximizingColor = request.game.turn
   const orderedMoves = orderMovesForSearch(legalMoves)
   const bestMoves: LegalMove[] = []
+  const depth = normalizeSearchDepth(options.depth)
   const useAlphaBeta = options.alphaBetaPruning ?? false
+  const context = createSearchContext(request, options, useAlphaBeta)
   let bestScore = Number.NEGATIVE_INFINITY
   let alpha = Number.NEGATIVE_INFINITY
   const beta = Number.POSITIVE_INFINITY
 
   for (const move of orderedMoves) {
+    if (context.terminatedEarly && bestMoves.length > 0) {
+      break
+    }
+
     const nextGame = applyMove(request.game, move)
     const score = minimax(
       nextGame,
-      options.depth - 1,
-      maximizingColor,
-      useAlphaBeta,
+      depth - 1,
       alpha,
       beta,
-      options.diagnostics,
+      context,
     )
 
     if (score > bestScore) {
@@ -187,7 +217,7 @@ function selectSearchMove(
       bestMoves.push(move)
     }
 
-    if (useAlphaBeta) {
+    if (context.useAlphaBeta) {
       alpha = Math.max(alpha, bestScore)
     }
   }
@@ -198,58 +228,72 @@ function selectSearchMove(
 function minimax(
   game: ChessGameState,
   depth: number,
-  maximizingColor: PieceColor,
-  useAlphaBeta: boolean,
   alpha: number,
   beta: number,
-  diagnostics?: AiSearchDiagnostics,
+  context: SearchContext,
 ): number {
-  if (diagnostics !== undefined) {
-    diagnostics.positionsEvaluated += 1
+  const cacheKey = createSearchCacheKey(game, depth, context.maximizingColor)
+  const cachedScore = readCachedScore(cacheKey, context)
+
+  if (cachedScore !== undefined) {
+    return cachedScore
   }
 
+  if (shouldTerminateSearch(context)) {
+    return evaluateBoard(game, context.maximizingColor, depth)
+  }
+
+  recordPositionEvaluation(context)
+
   if (depth === 0 || game.status === 'checkmate' || game.status === 'stalemate') {
-    return evaluateBoard(game, maximizingColor, depth)
+    return storeSearchScore(
+      cacheKey,
+      context,
+      evaluateBoard(game, context.maximizingColor, depth),
+    )
   }
 
   const legalMoves = generateLegalMoves(game)
 
   if (legalMoves.length === 0) {
-    return evaluateBoard(game, maximizingColor, depth)
+    return storeSearchScore(
+      cacheKey,
+      context,
+      evaluateBoard(game, context.maximizingColor, depth),
+    )
   }
 
   const orderedMoves = orderMovesForSearch(legalMoves)
 
-  if (game.turn === maximizingColor) {
+  if (game.turn === context.maximizingColor) {
     let bestScore = Number.NEGATIVE_INFINITY
 
     for (const move of orderedMoves) {
       const score = minimax(
         applyMove(game, move),
         depth - 1,
-        maximizingColor,
-        useAlphaBeta,
         alpha,
         beta,
-        diagnostics,
+        context,
       )
       bestScore = Math.max(bestScore, score)
 
-      if (!useAlphaBeta) {
-        continue
+      if (context.useAlphaBeta) {
+        alpha = Math.max(alpha, bestScore)
+
+        if (alpha >= beta) {
+          context.alphaBetaCutoffs += 1
+          syncDiagnostics(context)
+          return bestScore
+        }
       }
 
-      alpha = Math.max(alpha, bestScore)
-
-      if (alpha >= beta) {
-        if (diagnostics !== undefined) {
-          diagnostics.alphaBetaCutoffs += 1
-        }
+      if (context.terminatedEarly) {
         break
       }
     }
 
-    return bestScore
+    return storeSearchScore(cacheKey, context, bestScore)
   }
 
   let bestScore = Number.POSITIVE_INFINITY
@@ -258,29 +302,28 @@ function minimax(
     const score = minimax(
       applyMove(game, move),
       depth - 1,
-      maximizingColor,
-      useAlphaBeta,
       alpha,
       beta,
-      diagnostics,
+      context,
     )
     bestScore = Math.min(bestScore, score)
 
-    if (!useAlphaBeta) {
-      continue
+    if (context.useAlphaBeta) {
+      beta = Math.min(beta, bestScore)
+
+      if (alpha >= beta) {
+        context.alphaBetaCutoffs += 1
+        syncDiagnostics(context)
+        return bestScore
+      }
     }
 
-    beta = Math.min(beta, bestScore)
-
-    if (alpha >= beta) {
-      if (diagnostics !== undefined) {
-        diagnostics.alphaBetaCutoffs += 1
-      }
+    if (context.terminatedEarly) {
       break
     }
   }
 
-  return bestScore
+  return storeSearchScore(cacheKey, context, bestScore)
 }
 
 function evaluateBoard(
@@ -338,6 +381,10 @@ function orderMovesForSearch(legalMoves: LegalMove[]): LegalMove[] {
   return rankEasyMoves(legalMoves).map((entry) => entry.move)
 }
 
+function compareScoredMoves(left: AiScoredMove, right: AiScoredMove): number {
+  return right.score - left.score || compareLegalMoves(left.move, right.move)
+}
+
 function applyMove(game: ChessGameState, move: LegalMove): ChessGameState {
   return makeMove(game, {
     from: move.from,
@@ -383,4 +430,162 @@ function isBackRank(
   color: LegalMove['piece']['color'],
 ): boolean {
   return square[1] === (color === 'white' ? '1' : '8')
+}
+
+function createSearchContext(
+  request: AiMoveRequest,
+  options: AiSearchOptions,
+  useAlphaBeta: boolean,
+): SearchContext {
+  // Hard and medium search stay synchronous in this layer, so we cap the
+  // amount of evaluated work rather than risking long main-thread stalls.
+  return {
+    maximizingColor: request.game.turn,
+    useAlphaBeta,
+    maxPositions: normalizeMaxPositions(options.maxPositions),
+    positionsEvaluated: 0,
+    alphaBetaCutoffs: 0,
+    cacheHits: 0,
+    terminatedEarly: false,
+    diagnostics: options.diagnostics,
+    transpositionTable: new Map<string, number>(),
+    allowTranspositionCache: !useAlphaBeta,
+  }
+}
+
+function normalizeSearchDepth(depth: number): number {
+  if (!Number.isFinite(depth)) {
+    return 1
+  }
+
+  return Math.max(1, Math.floor(depth))
+}
+
+function normalizeMaxPositions(value: number | undefined): number | null {
+  if (value === undefined) {
+    return null
+  }
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return 1
+  }
+
+  return Math.floor(value)
+}
+
+function shouldTerminateSearch(context: SearchContext): boolean {
+  if (context.maxPositions === null || context.positionsEvaluated < context.maxPositions) {
+    return false
+  }
+
+  context.terminatedEarly = true
+  syncDiagnostics(context)
+
+  return true
+}
+
+function recordPositionEvaluation(context: SearchContext): void {
+  context.positionsEvaluated += 1
+  syncDiagnostics(context)
+}
+
+function readCachedScore(
+  cacheKey: string,
+  context: SearchContext,
+): number | undefined {
+  // Alpha-beta pruning can return bounds instead of exact scores, so we only
+  // reuse cached positions when the search runs without pruning.
+  if (!context.allowTranspositionCache) {
+    return undefined
+  }
+
+  const cachedScore = context.transpositionTable.get(cacheKey)
+
+  if (cachedScore === undefined) {
+    return undefined
+  }
+
+  context.cacheHits += 1
+  syncDiagnostics(context)
+
+  return cachedScore
+}
+
+function storeSearchScore(
+  cacheKey: string,
+  context: SearchContext,
+  score: number,
+): number {
+  if (context.allowTranspositionCache) {
+    context.transpositionTable.set(cacheKey, score)
+  }
+
+  return score
+}
+
+function syncDiagnostics(context: SearchContext): void {
+  if (context.diagnostics === undefined) {
+    return
+  }
+
+  context.diagnostics.positionsEvaluated = context.positionsEvaluated
+  context.diagnostics.alphaBetaCutoffs = context.alphaBetaCutoffs
+  context.diagnostics.cacheHits = context.cacheHits
+  context.diagnostics.terminatedEarly = context.terminatedEarly
+}
+
+function normalizeLegalSelection(
+  move: LegalMove,
+  legalMoves: LegalMove[],
+): LegalMove {
+  const matchingMove = legalMoves.find(
+    (candidate) => compareLegalMoves(candidate, move) === 0,
+  )
+
+  return matchingMove ?? legalMoves[0]!
+}
+
+function compareLegalMoves(left: LegalMove, right: LegalMove): number {
+  return createMoveKey(left).localeCompare(createMoveKey(right))
+}
+
+function createMoveKey(move: LegalMove): string {
+  return `${move.from}-${move.to}-${move.promotion ?? 'none'}`
+}
+
+function createSearchCacheKey(
+  game: ChessGameState,
+  depth: number,
+  maximizingColor: PieceColor,
+): string {
+  const castlingRights = `${Number(game.castlingRights.white.kingSide)}${Number(game.castlingRights.white.queenSide)}${Number(game.castlingRights.black.kingSide)}${Number(game.castlingRights.black.queenSide)}`
+  const pieces = game.pieces
+    .map((piece) => `${piece.color[0]}${toPieceTypeCode(piece.type)}${piece.square}`)
+    .join(',')
+
+  return [
+    maximizingColor,
+    game.turn,
+    depth,
+    castlingRights,
+    game.enPassantTarget ?? '-',
+    pieces,
+  ].join('|')
+}
+
+function toPieceTypeCode(type: LegalMove['piece']['type']): string {
+  switch (type) {
+    case 'king':
+      return 'k'
+    case 'queen':
+      return 'q'
+    case 'rook':
+      return 'r'
+    case 'bishop':
+      return 'b'
+    case 'knight':
+      return 'n'
+    case 'pawn':
+      return 'p'
+  }
 }

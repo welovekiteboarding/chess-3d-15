@@ -16,12 +16,15 @@ export interface AiScoredMove {
 export interface AiSearchDiagnostics {
   positionsEvaluated: number
   alphaBetaCutoffs: number
+  cacheHits: number
+  terminatedEarly: boolean
 }
 
 export interface AiSearchOptions {
   depth: number
   alphaBetaPruning?: boolean
   diagnostics?: AiSearchDiagnostics
+  maxPositions?: number
 }
 
 export type AiPieceValues = Record<PieceType, number>
