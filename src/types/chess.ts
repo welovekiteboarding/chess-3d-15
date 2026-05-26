@@ -14,6 +14,7 @@ export type GameStatus =
   | 'checkmate'
   | 'stalemate'
   | 'draw'
+  | 'resigned'
 
 export interface ChessPiece {
   color: PieceColor
@@ -112,6 +113,8 @@ export interface ChessSceneBinding {
   getGame(): ChessGameState
   getSnapshot(): ChessSceneSnapshot
   move(input: MoveInput): ChessSceneSnapshot
+  restart(): ChessSceneSnapshot
+  resign(resignedColor?: PieceColor): ChessSceneSnapshot
   subscribe(listener: ChessSceneListener): () => void
 }
 

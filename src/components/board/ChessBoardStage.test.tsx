@@ -150,11 +150,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-35')).toBeInTheDocument()
+    expect(screen.getAllByText('Issue C31-37')).toHaveLength(2)
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-007c',
+      'chess-009a',
     )
-    expect(screen.getByText('Issue C31-35').closest('aside')).toHaveAttribute(
+    expect(screen.getByRole('heading', { name: 'White to move' }).closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -190,6 +190,39 @@ describe('ChessBoardStage', () => {
         difficulty: 'hard',
       }),
     )
+  })
+
+  it('restarts the current game from the original seed position', () => {
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restart game' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'White to move' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Opening position')).toBeInTheDocument()
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+  })
+
+  it('lets the current player resign and blocks further board interaction until restart', () => {
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resign game' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Game ended' }),
+    ).toBeInTheDocument()
+    expect(within(screen.getByRole('list')).getByText('Resignation')).toBeInTheDocument()
+    expect(screen.getByText('Black wins by resignation.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Resign game' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
   })
 
   it('shows AI thinking and applies an AI reply after the human move animation completes', async () => {
@@ -247,6 +280,27 @@ describe('ChessBoardStage', () => {
       screen.getByRole('heading', { name: 'White to move' }),
     ).toBeInTheDocument()
     expect(screen.queryByText('AI thinking')).not.toBeInTheDocument()
+
+    vi.useRealTimers()
+  })
+
+  it('resigns for the human side even when the AI controls the active turn', () => {
+    vi.useFakeTimers()
+
+    render(
+      <ChessBoardStage
+        aiMatchSettings={createChessAiMatchSettings({
+          mode: 'human-vs-ai',
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resign game' }))
+
+    expect(screen.getAllByText('Black wins by resignation.')).toHaveLength(2)
 
     vi.useRealTimers()
   })
@@ -622,6 +676,24 @@ describe('ChessBoardStage', () => {
 
         listeners.forEach((listener) => {
           listener(snapshot)
+          listener(snapshot)
+        })
+
+        return snapshot
+      },
+      restart() {
+        const snapshot = baseBinding.restart()
+
+        listeners.forEach((listener) => {
+          listener(snapshot)
+        })
+
+        return snapshot
+      },
+      resign(resignedColor?: ChessGameState['turn']) {
+        const snapshot = baseBinding.resign(resignedColor)
+
+        listeners.forEach((listener) => {
           listener(snapshot)
         })
 

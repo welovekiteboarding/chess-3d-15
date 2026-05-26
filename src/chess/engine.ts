@@ -145,7 +145,7 @@ export function generateLegalMoves(
   game: ChessPositionState,
   square?: string,
 ): LegalMove[] {
-  if (isAutomaticDrawPosition(game)) {
+  if (isResolvedResignedGame(game) || isAutomaticDrawPosition(game)) {
     return []
   }
 
@@ -159,7 +159,7 @@ export function hasLegalMoves(
   game: ChessPositionState,
   square?: string,
 ): boolean {
-  if (isAutomaticDrawPosition(game)) {
+  if (isResolvedResignedGame(game) || isAutomaticDrawPosition(game)) {
     return false
   }
 
@@ -173,6 +173,10 @@ export function generateSearchLegalMoves(
   game: ChessPositionState,
   square?: string,
 ): LegalMove[] {
+  if (isResolvedResignedGame(game)) {
+    return []
+  }
+
   return generateSearchLegalMovesFromPosition(createSearchPosition(game), square)
 }
 
@@ -180,6 +184,10 @@ export function makeMove(
   game: ChessGameState,
   input: MoveInput,
 ): ChessGameState {
+  if (game.status === 'resigned') {
+    throw new Error(`Game is over: ${game.status}`)
+  }
+
   const from = parseSquare(input.from)
   const to = parseSquare(input.to)
   const legalMoves = generateLegalMoves(game, from)
@@ -255,7 +263,19 @@ export function createSearchPosition(
 export function resolveChessPositionSnapshot(
   game: ChessPositionState,
 ): ChessPositionSnapshot {
-  return createSnapshot(toInternalPosition(game))
+  const resolvedSnapshot = createSnapshot(toInternalPosition(game))
+  const existingSnapshot = game as Partial<ChessPositionSnapshot>
+
+  if (existingSnapshot.status === 'resigned') {
+    return {
+      ...resolvedSnapshot,
+      status: 'resigned',
+      checkedColor: existingSnapshot.checkedColor ?? resolvedSnapshot.checkedColor,
+      winner: existingSnapshot.winner ?? resolvedSnapshot.winner,
+    }
+  }
+
+  return resolvedSnapshot
 }
 
 export function createChessPositionKey(game: ChessPositionState): string {
@@ -411,6 +431,14 @@ function isAutomaticDrawPosition(
   position: Pick<ChessPositionState, 'halfmoveClock'>,
 ): boolean {
   return position.halfmoveClock >= FIFTY_MOVE_DRAW_HALFMOVE_CLOCK
+}
+
+function isResolvedResignedGame(
+  position: ChessPositionState,
+): position is ChessPositionSnapshot {
+  const maybeSnapshot = position as Partial<ChessPositionSnapshot>
+
+  return maybeSnapshot.status === 'resigned'
 }
 
 function hasPiece(

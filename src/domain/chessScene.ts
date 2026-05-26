@@ -1,4 +1,5 @@
 import { createChessGame, makeMove } from '../chess/engine'
+import { createChessGameControlsState, resignChessGame } from '../chess/gameControls'
 import { oppositeColor } from './chessboard'
 import type {
   ChessMove,
@@ -35,7 +36,8 @@ export function createChessSceneSnapshot(
 export function createChessSceneBinding(
   initialGame: ChessGameState = createChessGame(),
 ): ChessSceneBinding {
-  let game = cloneChessGameState(initialGame)
+  const initialState = cloneChessGameState(initialGame)
+  let game = cloneChessGameState(initialState)
   const listeners = new Set<ChessSceneListener>()
 
   return {
@@ -47,6 +49,26 @@ export function createChessSceneBinding(
     },
     move(input: MoveInput) {
       game = makeMove(game, input)
+
+      const snapshot = createChessSceneSnapshot(game)
+      notifyListeners(listeners, snapshot)
+
+      return snapshot
+    },
+    restart() {
+      game = cloneChessGameState(initialState)
+
+      const snapshot = createChessSceneSnapshot(game)
+      notifyListeners(listeners, snapshot)
+
+      return snapshot
+    },
+    resign(resignedColor: PieceColor = game.turn) {
+      if (!createChessGameControlsState(game).canResign) {
+        return createChessSceneSnapshot(game)
+      }
+
+      game = resignChessGame(game, resignedColor)
 
       const snapshot = createChessSceneSnapshot(game)
       notifyListeners(listeners, snapshot)
@@ -104,6 +126,15 @@ export function describeChessSceneStatus(
         statusDetail:
           'The game is drawn by the fifty-move rule after 50 quiet moves by each side.',
       }
+    case 'resigned': {
+      const winner = formatColor(snapshot.winner ?? oppositeColor(snapshot.turn))
+
+      return {
+        turnLabel: 'Game ended',
+        statusLabel: 'Resignation',
+        statusDetail: `${winner} wins by resignation.`,
+      }
+    }
     case 'active':
       return {
         turnLabel: `${activeColorLabel} to move`,

@@ -151,7 +151,8 @@ function describeChessAiTerminalState(
   if (
     resolvedGame.status !== 'checkmate' &&
     resolvedGame.status !== 'stalemate' &&
-    resolvedGame.status !== 'draw'
+    resolvedGame.status !== 'draw' &&
+    resolvedGame.status !== 'resigned'
   ) {
     return null
   }
@@ -162,7 +163,7 @@ function describeChessAiTerminalState(
     modeLabel,
     difficultyLabel,
     statusLabel:
-      resolvedGame.status === 'checkmate'
+      resolvedGame.status === 'checkmate' || resolvedGame.status === 'resigned'
         ? resolvedGame.winner === aiColor
           ? 'AI wins'
           : 'Human wins'
