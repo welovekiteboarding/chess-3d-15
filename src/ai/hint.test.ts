@@ -164,6 +164,33 @@ describe('requestChessHint', () => {
     ).toEqual(createChessHintState())
   })
 
+  it('keeps a visible hint unchanged until the board state changes', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+      ],
+      { turn: 'white' },
+    )
+    const visibleHint = showChessHintState({
+      game,
+      difficulty: 'easy',
+      random: () => 0,
+    })
+
+    expect(
+      syncChessHintState({
+        state: visibleHint,
+        game,
+        behavior: 'dismiss',
+        difficulty: 'easy',
+        random: () => 0,
+      }),
+    ).toBe(visibleHint)
+  })
+
   it('keeps a dismissed hint hidden when the board state changes', () => {
     const game = createCustomGame(
       [
@@ -186,6 +213,39 @@ describe('requestChessHint', () => {
         random: () => 0,
       }),
     ).toEqual(dismissedHint)
+  })
+
+  it('ignores stale status metadata when deciding whether the visible hint should refresh', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+      ],
+      { turn: 'white' },
+    )
+    const visibleHint = showChessHintState({
+      game,
+      difficulty: 'easy',
+      random: () => 0,
+    })
+    const staleStatusGame: ChessGameState = {
+      ...game,
+      status: 'check',
+      checkedColor: 'white',
+      winner: null,
+    }
+
+    expect(
+      syncChessHintState({
+        state: visibleHint,
+        game: staleStatusGame,
+        behavior: 'replace',
+        difficulty: 'easy',
+        random: () => 0,
+      }),
+    ).toBe(visibleHint)
   })
 
   it('can replace a visible hint with the next recommended move after the board changes', () => {

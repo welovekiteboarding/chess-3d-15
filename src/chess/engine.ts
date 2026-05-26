@@ -233,6 +233,27 @@ export function createSearchPosition(
   return toInternalPosition(game)
 }
 
+export function createChessPositionKey(game: ChessPositionState): string {
+  const position = toInternalPosition(game)
+  const castlingRightsKey = createCastlingRightsKey(position.castlingRights)
+  const pieceKey = position.orderedSquares
+    .map((square) => {
+      const piece = position.board[square]!
+
+      return `${square}:${piece.color}:${piece.type}`
+    })
+    .join(',')
+
+  return [
+    pieceKey,
+    position.turn,
+    castlingRightsKey,
+    position.enPassantTarget ?? '-',
+    String(position.halfmoveClock),
+    String(position.fullmoveNumber),
+  ].join('|')
+}
+
 export function generateSearchLegalMovesFromPosition(
   position: ChessSearchPosition,
   square?: string,
@@ -1180,6 +1201,15 @@ function isAttackedBySlidingPiece(
 
 function createOrderedSquares(squares: ChessSquare[]): ChessSquare[] {
   return [...squares].sort(compareSquaresInBoardOrder)
+}
+
+function createCastlingRightsKey(rights: CastlingRightsByColor): string {
+  return [
+    rights.white.kingSide ? 'K' : '',
+    rights.white.queenSide ? 'Q' : '',
+    rights.black.kingSide ? 'k' : '',
+    rights.black.queenSide ? 'q' : '',
+  ].join('') || '-'
 }
 
 function createOrderedSquaresFromBoard(board: BoardState): ChessSquare[] {

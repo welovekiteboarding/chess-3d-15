@@ -4,6 +4,7 @@ import {
   applyLegalMove,
   applyLegalMoveState,
   applySearchMove,
+  createChessPositionKey,
   createSearchPosition,
   createChessGame,
   generateLegalMoves,
@@ -524,5 +525,47 @@ describe('applyLegalMove', () => {
       ...recorded,
       history: [],
     })
+  })
+})
+
+describe('createChessPositionKey', () => {
+  it('serializes equivalent positions deterministically regardless of input piece order', () => {
+    const firstGame = createChessGame({
+      pieces: [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd7', color: 'black', type: 'rook' },
+      ],
+      turn: 'white',
+      castlingRights: {
+        white: { kingSide: false, queenSide: false },
+        black: { kingSide: false, queenSide: false },
+      },
+    })
+    const secondGame = createChessGame({
+      pieces: [
+        { square: 'd7', color: 'black', type: 'rook' },
+        { square: 'g8', color: 'black', type: 'king' },
+        { square: 'd4', color: 'white', type: 'queen' },
+        { square: 'g1', color: 'white', type: 'king' },
+      ],
+      turn: 'white',
+      castlingRights: {
+        white: { kingSide: false, queenSide: false },
+        black: { kingSide: false, queenSide: false },
+      },
+    })
+
+    expect(createChessPositionKey(firstGame)).toBe(
+      createChessPositionKey(secondGame),
+    )
+  })
+
+  it('changes when the underlying position changes after a move', () => {
+    const game = createChessGame()
+    const nextGame = makeMove(game, { from: 'e2', to: 'e4' })
+
+    expect(createChessPositionKey(nextGame)).not.toBe(createChessPositionKey(game))
   })
 })

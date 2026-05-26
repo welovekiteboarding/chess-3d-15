@@ -1,4 +1,4 @@
-import { generateLegalMoves } from '../chess/engine'
+import { createChessPositionKey, generateLegalMoves } from '../chess/engine'
 import { selectAiMove } from '../domain/ai'
 import type { AiDifficulty } from '../types/ai'
 import type {
@@ -31,6 +31,7 @@ export interface ChessHintStateSyncRequest extends ChessHintRequest {
 }
 
 export const DEFAULT_HINT_DIFFICULTY: AiDifficulty = 'hard'
+const hintPositionKeys = new WeakMap<ChessHintState, string>()
 
 export function createChessHintState(): ChessHintState {
   return {
@@ -71,12 +72,18 @@ export function showChessHintState(
 ): ChessHintState {
   const hint = requestChessHint(request)
 
-  return hint === null
-    ? createChessHintState()
-    : {
-        isVisible: true,
-        hint,
-      }
+  if (hint === null) {
+    return createChessHintState()
+  }
+
+  const state: ChessHintState = {
+    isVisible: true,
+    hint,
+  }
+
+  hintPositionKeys.set(state, createChessPositionKey(request.game))
+
+  return state
 }
 
 export function dismissChessHintState(): ChessHintState {
@@ -87,7 +94,13 @@ export function syncChessHintState(
   request: ChessHintStateSyncRequest,
 ): ChessHintState {
   if (!request.state.isVisible) {
-    return dismissChessHintState()
+    return request.state
+  }
+
+  const currentPositionKey = createChessPositionKey(request.game)
+
+  if (hintPositionKeys.get(request.state) === currentPositionKey) {
+    return request.state
   }
 
   return request.behavior === 'replace'
