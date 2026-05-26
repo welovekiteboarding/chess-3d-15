@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { requestChessHint, type ChessHint } from '../../ai/hint'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getPieceAtSquare } from '../../chess/engine'
 import {
   type ChessAnimatedPieceMotion,
@@ -44,11 +43,13 @@ type InteractionFeedbackTone = 'idle' | 'invalid'
 interface ChessBoardStageProps {
   initialGame?: ChessGameState
   binding?: ChessSceneBinding
+  controls?: ReactNode
 }
 
 export function ChessBoardStage({
   initialGame,
   binding,
+  controls,
 }: ChessBoardStageProps) {
   const sceneBinding = useMemo(
     () => binding ?? createChessSceneBinding(initialGame),
@@ -60,7 +61,6 @@ export function ChessBoardStage({
   )
   const [interactionFeedbackTone, setInteractionFeedbackTone] =
     useState<InteractionFeedbackTone>('idle')
-  const [hint, setHint] = useState<ChessHint | null>(null)
   const [animatedPieces, setAnimatedPieces] = useState<
     ReadonlyArray<ChessAnimatedPieceMotion>
   >([])
@@ -88,7 +88,6 @@ export function ChessBoardStage({
       syncChessInteractionState(initialGame, current),
     )
     setInteractionFeedbackTone('idle')
-    setHint(null)
     setAnimatedPieces([])
 
     return sceneBinding.subscribe((nextSnapshot) => {
@@ -102,7 +101,6 @@ export function ChessBoardStage({
         syncChessInteractionState(nextGame, current),
       )
       setInteractionFeedbackTone('idle')
-      setHint(null)
       setAnimatedPieces((currentAnimatedPieces) => {
         if (lastRecord === null) {
           return []
@@ -183,12 +181,6 @@ export function ChessBoardStage({
   const lastMoveLabel = formatLastMoveLabel(snapshot.lastMove)
   const moveChipLabel =
     snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
-  const canRequestHint =
-    snapshot.status === 'active' || snapshot.status === 'check'
-  const hintDetail =
-    hint === null
-      ? 'Request a recommended move for the current player.'
-      : `Recommended move: ${formatHintLabel(hint)}`
 
   function handleSquareSelect(
     square: ChessSquare,
@@ -250,16 +242,6 @@ export function ChessBoardStage({
     }
 
     setInteractionFeedbackTone('invalid')
-  }
-
-  function handleHintToggle() {
-    setHint((current) =>
-      current === null
-        ? requestChessHint({
-            game: sceneBinding.getGame(),
-          })
-        : null,
-    )
   }
 
   return (
@@ -356,17 +338,7 @@ export function ChessBoardStage({
           </p>
         </div>
 
-        <div className="board-stage__feedback">
-          <p className="board-stage__feedback-title">Hint mode</p>
-          <p className="board-stage__feedback-detail">{hintDetail}</p>
-          <button
-            disabled={!canRequestHint}
-            onClick={handleHintToggle}
-            type="button"
-          >
-            {hint === null ? 'Show hint' : 'Hide hint'}
-          </button>
-        </div>
+        {controls}
       </aside>
     </section>
   )
@@ -379,11 +351,5 @@ function formatLastMoveLabel(lastMove: ChessSceneLastMove | null): string {
 
   return `${lastMove.from} -> ${lastMove.to}${
     lastMove.promotion === null ? '' : ` = ${lastMove.promotion}`
-  }`
-}
-
-function formatHintLabel(hint: ChessHint): string {
-  return `${hint.from} -> ${hint.to}${
-    hint.promotion === null ? '' : ` = ${hint.promotion}`
   }`
 }

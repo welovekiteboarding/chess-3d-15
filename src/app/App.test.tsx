@@ -1,10 +1,16 @@
+import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { appRoutes, routerFuture } from './routes'
 
 vi.mock('../components/board/ChessBoardStage', () => ({
-  ChessBoardStage: () => <div>3D chess board foundation</div>,
+  ChessBoardStage: ({ controls }: { controls?: ReactNode }) => (
+    <div>
+      <div>3D chess board foundation</div>
+      {controls}
+    </div>
+  ),
 }))
 
 function renderRoute(path: string) {
@@ -36,5 +42,13 @@ describe('app routes', () => {
       'href',
       '/',
     )
+  })
+
+  it('renders the hint controls on the game shell route', () => {
+    renderRoute('/game')
+
+    expect(screen.getByText('Issue C31-33')).toBeInTheDocument()
+    expect(screen.getByText('Graph task chess-008d')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show hint' })).toBeInTheDocument()
   })
 })

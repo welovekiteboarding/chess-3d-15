@@ -126,25 +126,14 @@ describe('ChessBoardStage', () => {
     )
   })
 
-  it('lets the user request a hint and shows the recommended source and destination squares', () => {
-    render(
-      <ChessBoardStage
-        initialGame={createChessGame({
-          pieces: [
-            { square: 'g1', color: 'white', type: 'king' },
-            { square: 'd4', color: 'white', type: 'queen' },
-            { square: 'g8', color: 'black', type: 'king' },
-            { square: 'd7', color: 'black', type: 'rook' },
-          ],
-          turn: 'white',
-        })}
-      />,
+  it('renders injected controls inside the live board rail', () => {
+    render(<ChessBoardStage controls={<div>Hint controls surface</div>} />)
+
+    expect(screen.getByText('Hint controls surface')).toBeInTheDocument()
+    expect(screen.getByText('Hint controls surface').closest('aside')).toHaveAttribute(
+      'aria-live',
+      'polite',
     )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Show hint' }))
-
-    expect(screen.getByText('Recommended move: d4 -> d7')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hide hint' })).toBeInTheDocument()
   })
 
   it('renders check status from the supplied engine state', () => {
