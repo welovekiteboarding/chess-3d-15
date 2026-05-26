@@ -5,19 +5,17 @@ import {
 } from './chessInputDeduplication'
 
 describe('chessInputDeduplication', () => {
-  it('ignores an immediate repeated selection for the same square and move index', () => {
+  it('ignores an immediate repeated selection for the same square', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'e2',
-          moveIndex: 3,
           timestampMs: 1_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'e2',
-          moveIndex: 3,
           timestampMs: 1_000 + CHESS_INPUT_DEDUPLICATION_WINDOW_MS,
           pointerType: 'unknown',
           source: 'click',
@@ -26,19 +24,17 @@ describe('chessInputDeduplication', () => {
     ).toBe(true)
   })
 
-  it('ignores a same-square click follow-up even after the move index advances', () => {
+  it('ignores a same-square click follow-up even after the move advances', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'e4',
-          moveIndex: 3,
           timestampMs: 1_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'e4',
-          moveIndex: 4,
           timestampMs: 1_000 + 8,
           pointerType: 'unknown',
           source: 'click',
@@ -47,19 +43,17 @@ describe('chessInputDeduplication', () => {
     ).toBe(true)
   })
 
-  it('allows a different square after the move index changes', () => {
+  it('allows a different square after the move advances', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'e4',
-          moveIndex: 3,
           timestampMs: 1_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'e5',
-          moveIndex: 4,
           timestampMs: 1_000 + 8,
           pointerType: 'unknown',
           source: 'click',
@@ -73,14 +67,12 @@ describe('chessInputDeduplication', () => {
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'g1',
-          moveIndex: 0,
           timestampMs: 1_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'g1',
-          moveIndex: 0,
           timestampMs:
             1_000 + CHESS_INPUT_DEDUPLICATION_WINDOW_MS + 1,
           pointerType: 'unknown',
@@ -90,19 +82,17 @@ describe('chessInputDeduplication', () => {
     ).toBe(false)
   })
 
-  it('ignores delayed tap follow-up delivery for the same square and move index', () => {
+  it('ignores delayed tap follow-up delivery for the same square', () => {
     expect(
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'e2',
-          moveIndex: 5,
           timestampMs: 1_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'e2',
-          moveIndex: 5,
           timestampMs: 1_320,
           pointerType: 'unknown',
           source: 'click',
@@ -116,14 +106,12 @@ describe('chessInputDeduplication', () => {
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'b1',
-          moveIndex: 8,
           timestampMs: 2_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'b1',
-          moveIndex: 8,
           timestampMs: 1_950,
           pointerType: 'unknown',
           source: 'click',
@@ -137,14 +125,12 @@ describe('chessInputDeduplication', () => {
       shouldIgnoreDuplicateSquareSelect(
         {
           square: 'e2',
-          moveIndex: 3,
           timestampMs: 1_000,
           pointerType: 'touch',
           source: 'pointerdown',
         },
         {
           square: 'e2',
-          moveIndex: 3,
           timestampMs: 1_120,
           pointerType: 'touch',
           source: 'pointerdown',

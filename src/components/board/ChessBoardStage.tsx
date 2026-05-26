@@ -177,10 +177,8 @@ export function ChessBoardStage({
     input?: ChessSquareSelectInput,
   ) {
     const game = sceneBinding.getGame()
-    const moveIndex = game.history[game.history.length - 1]?.index ?? 0
     const handledSelection: ChessHandledSquareSelect = {
       square,
-      moveIndex,
       timestampMs: Date.now(),
       source: input?.source ?? 'pointerdown',
       pointerType: normalizeChessSquareSelectPointerType(input?.pointerType),

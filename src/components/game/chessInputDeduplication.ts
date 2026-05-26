@@ -19,7 +19,6 @@ interface PointerTypeCarrier {
 
 export interface ChessHandledSquareSelect extends ChessSquareSelectInput {
   square: ChessSquare
-  moveIndex: number
   timestampMs: number
 }
 
