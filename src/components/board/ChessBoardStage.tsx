@@ -12,7 +12,7 @@ import {
   shouldIgnoreDuplicateSquareSelect,
   type ChessHandledSquareSelect,
   type ChessSquareSelectInput,
-} from '../game/chessInputDeduplication'
+} from '../../input/chessInputDeduplication'
 import {
   createChessSceneBinding,
   describeChessSceneStatus,
@@ -35,8 +35,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-27'
-const GRAPH_TASK_ID = 'chess-005c'
+const LINEAR_ISSUE_ID = 'C31-28'
+const GRAPH_TASK_ID = 'chess-005d'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -304,6 +304,12 @@ export function ChessBoardStage({
             <dd>{lastMoveLabel}</dd>
           </div>
           <div className="board-stage__fact">
+            <dt>Input surface</dt>
+            <dd>
+              <code>src/input</code>
+            </dd>
+          </div>
+          <div className="board-stage__fact">
             <dt>Layout helper</dt>
             <dd>
               <code>{`${DEMO_SQUARE} -> [${demoPosition.join(', ')}]`}</code>
@@ -312,8 +318,9 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> adds smooth move animation,
-          mouse and touch play, and the first fully interactive 3D board loop.
+          Graph task <code>{GRAPH_TASK_ID}</code> wires the shared mouse and
+          touch move pipeline through <code>src/input</code> and into the live
+          3D board loop.
         </p>
 
         <div

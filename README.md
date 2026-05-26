@@ -55,6 +55,7 @@ npm run build
 - `src/app` contains the router and app entry component.
 - `src/routes` contains the landing page and game shell route.
 - `src/components` contains reusable layout and board presentation components.
+- `src/input` contains the shared mouse and touch board interaction pipeline.
 - `src/assets` contains starting-position data and shared scene content inputs.
 - `src/scene` contains 3D board math, lighting, camera, and piece rendering.
 - `src/styles` contains the global application stylesheet.

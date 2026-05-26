@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
-import { createChessSquareSelectHandlers } from '../components/game/chessSquareSelectHandlers'
-import type { ChessSquareSelectInput } from '../components/game/chessInputDeduplication'
+import { createChessSquareSelectHandlers } from '../input/chessSquareSelectHandlers'
+import type { ChessSquareSelectInput } from '../input/chessInputDeduplication'
 import {
   BOARD_SURFACE_Y,
   BOARD_FILES,
