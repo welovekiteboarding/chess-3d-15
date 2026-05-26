@@ -22,8 +22,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-26'
-const GRAPH_TASK_ID = 'chess-005b'
+const LINEAR_ISSUE_ID = 'C31-8'
+const GRAPH_TASK_ID = 'chess-004'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -206,9 +206,9 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> adds the first interaction
-          seam for committed moves, capture-aware destinations, and blocked
-          illegal targets.
+          Graph task <code>{GRAPH_TASK_ID}</code> connects live chess engine
+          state to the 3D board so piece renders, captures, promotions, and
+          turn status all stay in sync.
         </p>
 
         <div
