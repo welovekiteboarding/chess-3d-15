@@ -203,6 +203,28 @@ describe('selectAiMove', () => {
     expect(diagnostics.cacheHits).toBeGreaterThan(0)
   })
 
+  it('returns the same hard-mode move for the same seeded random input', () => {
+    const game = createCustomGame(
+      [
+        { square: 'g1', color: 'white', type: 'king' },
+        { square: 'a1', color: 'white', type: 'rook' },
+        { square: 'h1', color: 'white', type: 'rook' },
+        { square: 'g8', color: 'black', type: 'king' },
+      ],
+      { turn: 'white' },
+    )
+    const request = {
+      game,
+      difficulty: 'hard' as const,
+      random: () => 0.75,
+    }
+
+    const firstMove = selectAiMove(request)
+    const secondMove = selectAiMove(request)
+
+    expect(moveKey(firstMove)).toBe(moveKey(secondMove))
+  })
+
   it('falls back to the deepest completed search depth when the next depth hits its budget', () => {
     const game = createCustomGame(
       [

@@ -356,6 +356,30 @@ describe('search position helpers', () => {
       isInCheck(nextPositionState, nextPositionState.turn),
     )
   })
+
+  it('preserve castling move generation and check state after applying search-position castling', () => {
+    const game = createCustomGame([
+      { square: 'e1', color: 'white', type: 'king' },
+      { square: 'a1', color: 'white', type: 'rook' },
+      { square: 'h1', color: 'white', type: 'rook' },
+      { square: 'e8', color: 'black', type: 'king' },
+    ])
+    const move = generateSearchLegalMoves(game).find(
+      (legalMove) => legalMove.from === 'e1' && legalMove.to === 'g1',
+    )
+
+    expect(move).toBeDefined()
+
+    const nextPositionState = applyLegalMoveState(game, move!)
+    const nextSearchPosition = applySearchMove(createSearchPosition(game), move!)
+
+    expect(
+      moveKeys(generateSearchLegalMovesFromPosition(nextSearchPosition)),
+    ).toEqual(moveKeys(generateSearchLegalMoves(nextPositionState)))
+    expect(isSearchPositionInCheck(nextSearchPosition, nextSearchPosition.turn)).toBe(
+      isInCheck(nextPositionState, nextPositionState.turn),
+    )
+  })
 })
 
 describe('special moves', () => {

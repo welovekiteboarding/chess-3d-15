@@ -15,10 +15,6 @@ import type {
   AiSearchOptions,
   AiScoredMove,
 } from '../types/ai'
-import {
-  CHESS_FILES,
-  CHESS_RANKS,
-} from '../types/chess'
 import type {
   ChessSquare,
   LegalMove,
@@ -71,6 +67,10 @@ interface SearchContext {
 interface SearchIterationResult {
   bestMoves: LegalMove[]
   completed: boolean
+}
+
+interface SearchPositionWithOrdering extends ChessSearchPosition {
+  orderedSquares?: ChessSquare[]
 }
 
 export const AI_SEARCH_DEPTHS = {
@@ -723,7 +723,18 @@ function normalizeLegalSelection(
 }
 
 function compareLegalMoves(left: LegalMove, right: LegalMove): number {
-  return createMoveKey(left).localeCompare(createMoveKey(right))
+  const leftKey = createMoveKey(left)
+  const rightKey = createMoveKey(right)
+
+  if (leftKey < rightKey) {
+    return -1
+  }
+
+  if (leftKey > rightKey) {
+    return 1
+  }
+
+  return 0
 }
 
 function createMoveKey(move: LegalMove): string {
@@ -754,16 +765,32 @@ function forEachSearchPiece(
   game: ChessSearchPosition,
   visit: (square: ChessSquare, piece: LegalMove['piece']) => void,
 ): void {
-  for (const rank of CHESS_RANKS) {
-    for (const file of CHESS_FILES) {
-      const square = `${file}${rank}` as ChessSquare
-      const piece = game.board[square]
+  const orderedSquares = getOrderedSearchSquares(game)
 
-      if (piece !== undefined) {
-        visit(square, piece)
-      }
+  for (const square of orderedSquares) {
+    const piece = game.board[square]
+
+    if (piece !== undefined) {
+      visit(square, piece)
     }
   }
+}
+
+function getOrderedSearchSquares(
+  game: ChessSearchPosition,
+): ChessSquare[] {
+  const orderedSquares = (game as SearchPositionWithOrdering).orderedSquares
+
+  if (orderedSquares !== undefined) {
+    return orderedSquares
+  }
+
+  return (Object.keys(game.board) as ChessSquare[]).sort(compareChessSquares)
+}
+
+function compareChessSquares(left: ChessSquare, right: ChessSquare): number {
+  return left.charCodeAt(1) - right.charCodeAt(1) ||
+    left.charCodeAt(0) - right.charCodeAt(0)
 }
 
 function toPieceTypeCode(type: LegalMove['piece']['type']): string {

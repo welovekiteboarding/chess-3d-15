@@ -38,7 +38,12 @@ export interface ChessSearchPosition {
 
 type BoardState = ChessSearchBoardState
 
-interface InternalPosition extends ChessSearchPosition {}
+interface SearchPositionInternals {
+  orderedSquares: ChessSquare[]
+  kingSquares: Record<PieceColor, ChessSquare>
+}
+
+interface InternalPosition extends ChessSearchPosition, SearchPositionInternals {}
 
 interface BaseMove {
   from: ChessSquare
@@ -125,6 +130,8 @@ export function createChessGame(
         : parseSquare(options.enPassantTarget),
     halfmoveClock: options.halfmoveClock ?? 0,
     fullmoveNumber: options.fullmoveNumber ?? 1,
+    orderedSquares: createOrderedSquares(pieces.map((piece) => piece.square)),
+    kingSquares: createKingSquares(board),
   }
 
   return {
@@ -201,7 +208,7 @@ export function applyLegalMoveState(
   game: ChessPositionState,
   move: LegalMove,
 ): ChessPositionState {
-  return createPositionState(applySearchMove(createSearchPosition(game), move))
+  return createPositionState(applyMoveToPosition(toInternalPosition(game), move))
 }
 
 export function getPieceAtSquare(
@@ -232,21 +239,25 @@ export function generateSearchLegalMovesFromPosition(
 ): LegalMove[] {
   const targetSquare = square === undefined ? undefined : parseSquare(square)
 
-  return generateLegalMovesInternal(position, targetSquare, false)
+  return generateLegalMovesInternal(
+    toInternalSearchPosition(position),
+    targetSquare,
+    false,
+  )
 }
 
 export function applySearchMove(
   position: ChessSearchPosition,
   move: LegalMove,
 ): ChessSearchPosition {
-  return applyMoveToPosition(position, move)
+  return applyMoveToPosition(toInternalSearchPosition(position), move)
 }
 
 export function isSearchPositionInCheck(
   position: ChessSearchPosition,
   color: PieceColor,
 ): boolean {
-  return isKingInCheck(position, color)
+  return isKingInCheck(toInternalSearchPosition(position), color)
 }
 
 export function replayGameHistory(
@@ -358,19 +369,23 @@ function hasPiece(
 }
 
 function toInternalPosition(position: ChessPositionState): InternalPosition {
+  const board = boardFromPieces(position.pieces)
+
   return {
-    board: boardFromPieces(position.pieces),
+    board,
     turn: position.turn,
     castlingRights: cloneCastlingRights(position.castlingRights),
     enPassantTarget: position.enPassantTarget,
     halfmoveClock: position.halfmoveClock,
     fullmoveNumber: position.fullmoveNumber,
+    orderedSquares: createOrderedSquares(position.pieces.map((piece) => piece.square)),
+    kingSquares: createKingSquares(board),
   }
 }
 
 function createPositionState(position: InternalPosition): ChessPositionState {
   return {
-    pieces: piecesFromBoard(position.board),
+    pieces: piecesFromPosition(position),
     turn: position.turn,
     castlingRights: cloneCastlingRights(position.castlingRights),
     enPassantTarget: position.enPassantTarget,
@@ -415,25 +430,31 @@ function createSnapshot(position: InternalPosition): ChessPositionSnapshot {
   }
 }
 
-function piecesFromBoard(board: BoardState): ChessPiecePlacement[] {
-  const pieces: ChessPiecePlacement[] = []
+function toInternalSearchPosition(
+  position: ChessSearchPosition,
+): InternalPosition {
+  const maybeInternal = position as Partial<InternalPosition>
 
-  for (const rank of CHESS_RANKS) {
-    for (const file of CHESS_FILES) {
-      const square = `${file}${rank}` as ChessSquare
-      const piece = board[square]
-
-      if (piece !== undefined) {
-        pieces.push({
-          square,
-          color: piece.color,
-          type: piece.type,
-        })
-      }
-    }
+  if (
+    maybeInternal.orderedSquares !== undefined &&
+    maybeInternal.kingSquares !== undefined
+  ) {
+    return maybeInternal as InternalPosition
   }
 
-  return pieces
+  return {
+    ...position,
+    orderedSquares: createOrderedSquaresFromBoard(position.board),
+    kingSquares: createKingSquares(position.board),
+  }
+}
+
+function piecesFromPosition(position: InternalPosition): ChessPiecePlacement[] {
+  return position.orderedSquares.map((square) => ({
+    square,
+    color: position.board[square]!.color,
+    type: position.board[square]!.type,
+  }))
 }
 
 function resolveRequestedMove(
@@ -507,18 +528,14 @@ function generateLegalMovesInternal(
 function generateMovesForTurn(position: InternalPosition): BaseMove[] {
   const moves: BaseMove[] = []
 
-  for (const piecePlacement of piecesFromBoard(position.board)) {
-    if (piecePlacement.color !== position.turn) {
+  for (const square of position.orderedSquares) {
+    const piece = position.board[square]
+
+    if (piece === undefined || piece.color !== position.turn) {
       continue
     }
 
-    moves.push(
-      ...generateMovesForPiece(
-        position,
-        piecePlacement.square,
-        position.board[piecePlacement.square]!,
-      ),
-    )
+    moves.push(...generateMovesForPiece(position, square, piece))
   }
 
   return moves
@@ -957,6 +974,11 @@ function applyMoveToPosition(
         }
 
   const castlingRights = updateCastlingRights(position.castlingRights, move)
+  const kingSquares = { ...position.kingSquares }
+
+  if (move.piece.type === 'king') {
+    kingSquares[move.piece.color] = move.to
+  }
 
   return {
     board,
@@ -971,6 +993,8 @@ function applyMoveToPosition(
       position.turn === 'black'
         ? position.fullmoveNumber + 1
         : position.fullmoveNumber,
+    orderedSquares: updateOrderedSquares(position, move),
+    kingSquares,
   }
 }
 
@@ -1041,22 +1065,11 @@ function isKingInCheck(
   position: InternalPosition,
   color: PieceColor,
 ): boolean {
-  const kingSquare = findKingSquare(position.board, color)
-
-  return isSquareAttacked(position, kingSquare, oppositeColor(color))
-}
-
-function findKingSquare(
-  board: BoardState,
-  color: PieceColor,
-): ChessSquare {
-  for (const piece of piecesFromBoard(board)) {
-    if (piece.color === color && piece.type === 'king') {
-      return piece.square
-    }
-  }
-
-  throw new Error(`Missing ${color} king`)
+  return isSquareAttacked(
+    position,
+    position.kingSquares[color],
+    oppositeColor(color),
+  )
 }
 
 function isSquareAttacked(
@@ -1163,4 +1176,80 @@ function isAttackedBySlidingPiece(
   }
 
   return false
+}
+
+function createOrderedSquares(squares: ChessSquare[]): ChessSquare[] {
+  return [...squares].sort(compareSquaresInBoardOrder)
+}
+
+function createOrderedSquaresFromBoard(board: BoardState): ChessSquare[] {
+  return createOrderedSquares(Object.keys(board) as ChessSquare[])
+}
+
+function compareSquaresInBoardOrder(
+  left: ChessSquare,
+  right: ChessSquare,
+): number {
+  return left.charCodeAt(1) - right.charCodeAt(1) ||
+    left.charCodeAt(0) - right.charCodeAt(0)
+}
+
+function createKingSquares(
+  board: BoardState,
+): Record<PieceColor, ChessSquare> {
+  return {
+    white: findPieceSquare(board, 'white', 'king'),
+    black: findPieceSquare(board, 'black', 'king'),
+  }
+}
+
+function findPieceSquare(
+  board: BoardState,
+  color: PieceColor,
+  type: PieceType,
+): ChessSquare {
+  for (const square of Object.keys(board) as ChessSquare[]) {
+    const piece = board[square]
+
+    if (piece?.color === color && piece.type === type) {
+      return square
+    }
+  }
+
+  throw new Error(`Missing ${color} ${type}`)
+}
+
+function updateOrderedSquares(
+  position: InternalPosition,
+  move: BaseMove,
+): ChessSquare[] {
+  const removedSquares = new Set<ChessSquare>([move.from])
+
+  if (move.isEnPassant) {
+    const { fileIndex } = squareToCoordinates(move.to)
+    const { rankIndex } = squareToCoordinates(move.from)
+    const capturedSquare = coordinatesToSquare(fileIndex, rankIndex)
+
+    if (capturedSquare !== null) {
+      removedSquares.add(capturedSquare)
+    }
+  } else if (move.capturedPiece !== null) {
+    removedSquares.add(move.to)
+  }
+
+  if (move.isCastling && move.rookFrom !== null) {
+    removedSquares.add(move.rookFrom)
+  }
+
+  const nextSquares = position.orderedSquares.filter(
+    (square) => !removedSquares.has(square),
+  )
+
+  nextSquares.push(move.to)
+
+  if (move.isCastling && move.rookTo !== null) {
+    nextSquares.push(move.rookTo)
+  }
+
+  return createOrderedSquares(nextSquares)
 }
