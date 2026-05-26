@@ -2,23 +2,43 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createChessGame, makeMove } from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
+import {
+  resolveChessSquareSelectPointerType,
+  type ChessSquareSelectInput,
+} from '../game/chessInputDeduplication'
 import type { ChessGameState, MoveInput } from '../../types/chess'
 import { ChessBoardStage } from './ChessBoardStage'
 
 vi.mock('../../scene/ChessScene', () => ({
   ChessScene: ({
     pieces = [],
+    animatedPieces = [],
     highlightedSquares = [],
     onSquareSelect,
     selectedSquare = null,
   }: {
     pieces?: ReadonlyArray<{ square: string; color: string; type: string }>
+    animatedPieces?: ReadonlyArray<{
+      from: string
+      to: string
+      piece: { color: string; type: string }
+    }>
     highlightedSquares?: ReadonlyArray<{ square: string; kind: string }>
-    onSquareSelect?: (square: string) => void
+    onSquareSelect?: (square: string, input?: ChessSquareSelectInput) => void
     selectedSquare?: string | null
   }) => (
     <div>
       <div data-testid="scene-piece-count">{`${pieces.length} scene pieces`}</div>
+      <div data-testid="scene-animated-pieces">
+        {animatedPieces.length === 0
+          ? 'none'
+          : animatedPieces
+              .map(
+                (animation) =>
+                  `${animation.from}->${animation.to}:${animation.piece.color}:${animation.piece.type}`,
+              )
+              .join(',')}
+      </div>
       <div data-testid="scene-selected-square">{selectedSquare ?? 'none'}</div>
       <div data-testid="scene-highlighted-squares">
         {highlightedSquares
@@ -28,13 +48,46 @@ vi.mock('../../scene/ChessScene', () => ({
       {['d4', 'e2', 'e4', 'e5', 'f3', 'f6', 'g1'].map((square) => (
         <button
           key={square}
-          onClick={() => onSquareSelect?.(square)}
-          onPointerDown={() => onSquareSelect?.(square)}
+          onClick={() =>
+            onSquareSelect?.(square, {
+              source: 'click',
+              pointerType: 'unknown',
+            })
+          }
+          onPointerDown={(event) =>
+            onSquareSelect?.(square, {
+              source: 'pointerdown',
+              pointerType: resolveChessSquareSelectPointerType(event),
+            })
+          }
           type="button"
         >
           {`select ${square}`}
         </button>
       ))}
+      <button
+        onClick={() =>
+          onSquareSelect?.('e2', {
+            source: 'pointerdown',
+            pointerType: 'touch',
+            timestampMs: 120,
+          })
+        }
+        type="button"
+      >
+        select e2 touch timed
+      </button>
+      <button
+        onClick={() =>
+          onSquareSelect?.('e2', {
+            source: 'click',
+            pointerType: 'unknown',
+          })
+        }
+        type="button"
+      >
+        select e2 click untimed
+      </button>
     </div>
   ),
 }))
@@ -63,11 +116,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-26')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-27')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-005b',
+      'chess-005c',
     )
-    expect(screen.getByText('Issue C31-26').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-27').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -189,7 +242,7 @@ describe('ChessBoardStage', () => {
     ).toBeInTheDocument()
   })
 
-  it('selects pieces from click and touch input and exposes legal targets to the scene', () => {
+  it('selects pieces from mouse and touch input and exposes legal targets to the scene', () => {
     render(<ChessBoardStage />)
 
     fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
@@ -202,6 +255,90 @@ describe('ChessBoardStage', () => {
     fireEvent.pointerDown(screen.getByRole('button', { name: 'select g1' }), {
       pointerType: 'touch',
     })
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'f3:move,h3:move',
+    )
+  })
+
+  it('treats duplicate tap delivery as a single touch interaction', () => {
+    vi.useFakeTimers()
+
+    render(<ChessBoardStage />)
+
+    const sourceSquare = screen.getByRole('button', { name: 'select e2' })
+    const targetSquare = screen.getByRole('button', { name: 'select e4' })
+
+    fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    act(() => {
+      vi.advanceTimersByTime(320)
+    })
+    fireEvent.click(sourceSquare)
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'e3:move,e4:move',
+    )
+
+    fireEvent.pointerDown(targetSquare, { pointerType: 'touch' })
+    fireEvent.click(targetSquare)
+
+    expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Black to move' }),
+    ).toBeInTheDocument()
+
+    vi.useRealTimers()
+  })
+
+  it('allows a second touch tap on the same piece to clear the selection', () => {
+    render(<ChessBoardStage />)
+
+    const sourceSquare = screen.getByRole('button', { name: 'select e2' })
+
+    fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
+  })
+
+  it('deduplicates a touch click fallback when the pointer-down used a relative event timestamp', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-26T12:00:00.000Z'))
+
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 touch timed' }))
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    act(() => {
+      vi.advanceTimersByTime(120)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'select e2 click untimed' }))
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'e3:move,e4:move',
+    )
+
+    vi.useRealTimers()
+  })
+
+  it('ignores a delayed touch click follow-up after a newer touch selection changed squares', () => {
+    render(<ChessBoardStage />)
+
+    const firstSquare = screen.getByRole('button', { name: 'select e2' })
+    const secondSquare = screen.getByRole('button', { name: 'select g1' })
+
+    fireEvent.pointerDown(firstSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    fireEvent.pointerDown(secondSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
+
+    fireEvent.click(firstSquare)
 
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
     expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
@@ -230,16 +367,27 @@ describe('ChessBoardStage', () => {
     )
   })
 
-  it('commits a legal move from click and touch interaction', () => {
+  it('commits a legal move from mouse and touch interaction', () => {
+    vi.useFakeTimers()
+
     const { unmount } = render(<ChessBoardStage />)
 
     fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
     fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
 
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
+      'e2->e4:white:pawn',
+    )
     expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(260)
+    })
+
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent('none')
 
     unmount()
     render(<ChessBoardStage />)
@@ -255,6 +403,50 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
+
+    vi.useRealTimers()
+  })
+
+  it('keeps the current move animation when a binding replays the same move snapshot', () => {
+    vi.useFakeTimers()
+
+    const baseBinding = createChessSceneBinding()
+    const replayingBinding = {
+      getGame: () => baseBinding.getGame(),
+      getSnapshot: () => baseBinding.getSnapshot(),
+      move(input: MoveInput) {
+        const snapshot = baseBinding.move(input)
+
+        listeners.forEach((listener) => {
+          listener(snapshot)
+          listener(snapshot)
+        })
+
+        return snapshot
+      },
+      subscribe(listener: (snapshot: ReturnType<typeof baseBinding.getSnapshot>) => void) {
+        listeners.add(listener)
+        listener(baseBinding.getSnapshot())
+
+        return () => {
+          listeners.delete(listener)
+        }
+      },
+    }
+    const listeners = new Set<
+      (snapshot: ReturnType<typeof baseBinding.getSnapshot>) => void
+    >()
+
+    render(<ChessBoardStage binding={replayingBinding} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
+      'e2->e4:white:pawn',
+    )
+
+    vi.useRealTimers()
   })
 
   it('blocks illegal moves and shows subtle feedback without clearing the active selection', () => {

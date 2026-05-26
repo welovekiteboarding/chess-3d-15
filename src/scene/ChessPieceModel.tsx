@@ -1,3 +1,15 @@
+import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import type { Group } from 'three'
+import type { ChessAnimatedPieceMotion } from '../components/game/chessMoveAnimations'
+import {
+  CHESS_MOVE_ANIMATION_DURATION_MS,
+  resolveChessAnimationPose,
+} from '../components/game/chessMoveAnimations'
+import {
+  type ChessSquareSelectInput,
+} from '../components/game/chessInputDeduplication'
+import { createChessSquareSelectHandlers } from '../components/game/chessSquareSelectHandlers'
 import type {
   ChessScenePiece,
   ChessSquare,
@@ -287,18 +299,19 @@ function ChessPiece({
   selectedSquare,
 }: {
   piece: ChessScenePiece
-  onSquareSelect?: (square: ChessSquare) => void
+  onSquareSelect?: (square: ChessSquare, input?: ChessSquareSelectInput) => void
   selectedSquare?: ChessSquare | null
 }) {
   const position = squareToScenePosition(piece.square, BOARD_SURFACE_Y)
   const isSelected = piece.square === selectedSquare
+  const squareSelectHandlers = createChessSquareSelectHandlers(
+    piece.square,
+    onSquareSelect,
+  )
 
   return (
     <group
-      onPointerDown={(event) => {
-        event.stopPropagation()
-        onSquareSelect?.(piece.square)
-      }}
+      {...squareSelectHandlers}
       position={position}
       rotation={[0, piece.color === 'white' ? 0 : Math.PI, 0]}
       scale={PIECE_SCALES[piece.type] * (isSelected ? 1.06 : 1)}
@@ -308,14 +321,74 @@ function ChessPiece({
   )
 }
 
+function AnimatedChessPiece({
+  animation,
+}: {
+  animation: ChessAnimatedPieceMotion
+}) {
+  const groupRef = useRef<Group | null>(null)
+  const elapsedMsRef = useRef(0)
+  const startPosition = useMemo(
+    () => squareToScenePosition(animation.from, BOARD_SURFACE_Y),
+    [animation.from],
+  )
+  const endPosition = useMemo(
+    () => squareToScenePosition(animation.to, BOARD_SURFACE_Y),
+    [animation.to],
+  )
+  const baseScale = PIECE_SCALES[animation.piece.type]
+
+  useEffect(() => {
+    elapsedMsRef.current = 0
+
+    if (groupRef.current !== null) {
+      groupRef.current.position.set(...startPosition)
+    }
+  }, [animation.id, startPosition])
+
+  useFrame((_, delta) => {
+    if (groupRef.current === null) {
+      return
+    }
+
+    elapsedMsRef.current = Math.min(
+      CHESS_MOVE_ANIMATION_DURATION_MS,
+      elapsedMsRef.current + delta * 1000,
+    )
+    const { x, y, z } = resolveChessAnimationPose(
+      startPosition,
+      endPosition,
+      elapsedMsRef.current,
+    )
+
+    groupRef.current.position.set(x, y, z)
+  })
+
+  return (
+    <group
+      ref={groupRef}
+      position={startPosition}
+      rotation={[0, animation.piece.color === 'white' ? 0 : Math.PI, 0]}
+      scale={baseScale}
+    >
+      <ChessPieceShape
+        color={animation.piece.color}
+        pieceType={animation.piece.type}
+      />
+    </group>
+  )
+}
+
 interface ChessPieceRackProps {
   pieces: ReadonlyArray<ChessScenePiece>
-  onSquareSelect?: (square: ChessSquare) => void
+  animatedPieces?: ReadonlyArray<ChessAnimatedPieceMotion>
+  onSquareSelect?: (square: ChessSquare, input?: ChessSquareSelectInput) => void
   selectedSquare?: ChessSquare | null
 }
 
 export function ChessPieceRack({
   pieces,
+  animatedPieces = [],
   onSquareSelect,
   selectedSquare,
 }: ChessPieceRackProps) {
@@ -328,6 +401,9 @@ export function ChessPieceRack({
           piece={piece}
           selectedSquare={selectedSquare}
         />
+      ))}
+      {animatedPieces.map((animation) => (
+        <AnimatedChessPiece animation={animation} key={animation.id} />
       ))}
     </group>
   )

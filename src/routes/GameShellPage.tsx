@@ -8,9 +8,8 @@ export function GameShellPage() {
 
       <div className="game-shell-page__footer">
         <p className="body-copy">
-          Graph task <code>chess-004c</code> now surfaces live engine state in
-          the game shell, including turn tracking plus check, checkmate, and
-          stalemate status messaging beside the 3D board.
+          Graph task <code>chess-005c</code> now adds smooth move animation and
+          shared mouse-plus-touch interactions to the live 3D board.
         </p>
 
         <Link className="secondary-link" to="/">

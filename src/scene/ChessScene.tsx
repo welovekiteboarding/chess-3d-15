@@ -2,6 +2,8 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { OrbitControls as ThreeOrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PCFSoftShadowMap } from 'three'
+import type { ChessAnimatedPieceMotion } from '../components/game/chessMoveAnimations'
+import type { ChessSquareSelectInput } from '../components/game/chessInputDeduplication'
 import { ChessBoardModel } from './ChessBoardModel'
 import { ChessPieceRack } from './ChessPieceModel'
 import type { ChessScenePiece } from '../types/chess'
@@ -80,13 +82,15 @@ function ChessLights() {
 
 interface ChessSceneProps {
   pieces: ReadonlyArray<ChessScenePiece>
+  animatedPieces?: ReadonlyArray<ChessAnimatedPieceMotion>
   highlightedSquares?: ReadonlyArray<ChessSceneSquareHighlight>
-  onSquareSelect?: (square: BoardSquare) => void
+  onSquareSelect?: (square: BoardSquare, input?: ChessSquareSelectInput) => void
   selectedSquare?: BoardSquare | null
 }
 
 export function ChessScene({
   pieces,
+  animatedPieces = [],
   highlightedSquares = [],
   onSquareSelect,
   selectedSquare = null,
@@ -111,6 +115,7 @@ export function ChessScene({
         onSquareSelect={onSquareSelect}
       />
       <ChessPieceRack
+        animatedPieces={animatedPieces}
         onSquareSelect={onSquareSelect}
         pieces={pieces}
         selectedSquare={selectedSquare}
