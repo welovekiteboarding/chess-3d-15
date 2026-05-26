@@ -177,9 +177,13 @@ export function ChessBoardStage({
     input?: ChessSquareSelectInput,
   ) {
     const game = sceneBinding.getGame()
+    const timestampMs =
+      input?.timestampMs !== undefined && Number.isFinite(input.timestampMs)
+        ? input.timestampMs
+        : Date.now()
     const handledSelection: ChessHandledSquareSelect = {
       square,
-      timestampMs: Date.now(),
+      timestampMs,
       source: input?.source ?? 'pointerdown',
       pointerType: normalizeChessSquareSelectPointerType(input?.pointerType),
     }

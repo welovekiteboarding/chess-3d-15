@@ -10,6 +10,7 @@ export type ChessSquareSelectPointerType = 'mouse' | 'touch' | 'pen' | 'unknown'
 export interface ChessSquareSelectInput {
   source: ChessSquareSelectSource
   pointerType: ChessSquareSelectPointerType
+  timestampMs?: number
 }
 
 interface PointerTypeCarrier {
