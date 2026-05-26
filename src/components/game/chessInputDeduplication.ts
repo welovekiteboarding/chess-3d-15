@@ -15,7 +15,20 @@ export interface ChessSquareSelectInput {
 
 interface PointerTypeCarrier {
   pointerType?: string
-  nativeEvent?: Event | { pointerType?: string }
+  nativeEvent?:
+    | Event
+    | {
+        changedTouches?: {
+          length?: number
+        }
+        pointerType?: string
+        sourceCapabilities?: {
+          firesTouchEvents?: boolean
+        }
+        touches?: {
+          length?: number
+        }
+      }
 }
 
 export interface ChessHandledSquareSelect extends ChessSquareSelectInput {
@@ -47,13 +60,71 @@ export function resolveChessSquareSelectPointerType(
 function resolveNestedPointerType(
   event: PointerTypeCarrier['nativeEvent'],
 ): string | undefined {
-  if (typeof event !== 'object' || event === null || !('pointerType' in event)) {
+  if (typeof event !== 'object' || event === null) {
     return undefined
   }
 
-  const pointerType = event.pointerType
+  if ('pointerType' in event) {
+    const pointerType = event.pointerType
 
-  return typeof pointerType === 'string' ? pointerType : undefined
+    if (typeof pointerType === 'string') {
+      return pointerType
+    }
+  }
+
+  if (hasTouchMetadata(event)) {
+    return 'touch'
+  }
+
+  return undefined
+}
+
+function hasTouchMetadata(
+  event: Exclude<PointerTypeCarrier['nativeEvent'], undefined>,
+): boolean {
+  return (
+    resolveTouchCount(event, 'touches') > 0 ||
+    resolveTouchCount(event, 'changedTouches') > 0 ||
+    resolveFiresTouchEvents(event) === true
+  )
+}
+
+function resolveTouchCount(
+  event: Exclude<PointerTypeCarrier['nativeEvent'], undefined>,
+  field: 'touches' | 'changedTouches',
+): number {
+  const touches = (event as {
+    changedTouches?: {
+      length?: number
+    }
+    touches?: {
+      length?: number
+    }
+  })[field]
+
+  return typeof touches === 'object' &&
+    touches !== null &&
+    typeof touches.length === 'number'
+    ? touches.length
+    : 0
+}
+
+function resolveFiresTouchEvents(
+  event: Exclude<PointerTypeCarrier['nativeEvent'], undefined>,
+): boolean | undefined {
+  const sourceCapabilities = (event as {
+    sourceCapabilities?: {
+      firesTouchEvents?: boolean
+    }
+  }).sourceCapabilities
+
+  if (typeof sourceCapabilities !== 'object' || sourceCapabilities === null) {
+    return undefined
+  }
+
+  const { firesTouchEvents } = sourceCapabilities
+
+  return typeof firesTouchEvents === 'boolean' ? firesTouchEvents : undefined
 }
 
 export function shouldIgnoreDuplicateSquareSelect(

@@ -89,17 +89,22 @@ export function ChessBoardStage({
       const nextGame = sceneBinding.getGame()
       const lastRecord = nextGame.history[nextGame.history.length - 1] ?? null
       const latestMoveIndex = lastRecord?.index ?? 0
+      const previousMoveIndex = previousMoveIndexRef.current
 
       setSnapshot(nextSnapshot)
       setInteractionState((current) =>
         syncChessInteractionState(nextGame, current),
       )
       setInteractionFeedbackTone('idle')
-      setAnimatedPieces(
-        lastRecord === null || latestMoveIndex === previousMoveIndexRef.current
-          ? []
-          : createChessMoveAnimations(nextSnapshot, lastRecord),
-      )
+      setAnimatedPieces((currentAnimatedPieces) => {
+        if (lastRecord === null) {
+          return []
+        }
+
+        return latestMoveIndex === previousMoveIndex
+          ? currentAnimatedPieces
+          : createChessMoveAnimations(nextSnapshot, lastRecord)
+      })
       previousMoveIndexRef.current = latestMoveIndex
     })
   }, [sceneBinding])

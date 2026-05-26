@@ -362,6 +362,48 @@ describe('ChessBoardStage', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the current move animation when a binding replays the same move snapshot', () => {
+    vi.useFakeTimers()
+
+    const baseBinding = createChessSceneBinding()
+    const replayingBinding = {
+      getGame: () => baseBinding.getGame(),
+      getSnapshot: () => baseBinding.getSnapshot(),
+      move(input: MoveInput) {
+        const snapshot = baseBinding.move(input)
+
+        listeners.forEach((listener) => {
+          listener(snapshot)
+          listener(snapshot)
+        })
+
+        return snapshot
+      },
+      subscribe(listener: (snapshot: ReturnType<typeof baseBinding.getSnapshot>) => void) {
+        listeners.add(listener)
+        listener(baseBinding.getSnapshot())
+
+        return () => {
+          listeners.delete(listener)
+        }
+      },
+    }
+    const listeners = new Set<
+      (snapshot: ReturnType<typeof baseBinding.getSnapshot>) => void
+    >()
+
+    render(<ChessBoardStage binding={replayingBinding} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
+      'e2->e4:white:pawn',
+    )
+
+    vi.useRealTimers()
+  })
+
   it('blocks illegal moves and shows subtle feedback without clearing the active selection', () => {
     render(<ChessBoardStage />)
 

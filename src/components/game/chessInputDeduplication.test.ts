@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CHESS_INPUT_DEDUPLICATION_WINDOW_MS,
+  resolveChessSquareSelectPointerType,
   shouldIgnoreDuplicateSquareSelect,
 } from './chessInputDeduplication'
 
@@ -156,5 +157,27 @@ describe('chessInputDeduplication', () => {
         },
       ),
     ).toBe(false)
+  })
+
+  it('infers touch input from touch metadata when pointerType is unavailable', () => {
+    expect(
+      resolveChessSquareSelectPointerType({
+        nativeEvent: {
+          changedTouches: {
+            length: 1,
+          },
+        },
+      }),
+    ).toBe('touch')
+
+    expect(
+      resolveChessSquareSelectPointerType({
+        nativeEvent: {
+          sourceCapabilities: {
+            firesTouchEvents: true,
+          },
+        },
+      }),
+    ).toBe('touch')
   })
 })
