@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getPieceAtSquare } from '../../chess/engine'
+import {
+  type ChessAnimatedPieceMotion,
+  CHESS_MOVE_ANIMATION_DURATION_MS,
+  createChessMoveAnimations,
+  filterScenePiecesForAnimation,
+} from '../game/chessMoveAnimations'
 import {
   createChessSceneBinding,
   describeChessSceneStatus,
@@ -22,8 +28,8 @@ import type {
 
 const DEMO_SQUARE = 'e4'
 const demoPosition = squareToScenePosition(DEMO_SQUARE)
-const LINEAR_ISSUE_ID = 'C31-26'
-const GRAPH_TASK_ID = 'chess-005b'
+const LINEAR_ISSUE_ID = 'C31-27'
+const GRAPH_TASK_ID = 'chess-005c'
 
 type InteractionFeedbackTone = 'idle' | 'invalid'
 
@@ -46,26 +52,80 @@ export function ChessBoardStage({
   )
   const [interactionFeedbackTone, setInteractionFeedbackTone] =
     useState<InteractionFeedbackTone>('idle')
+  const [animatedPieces, setAnimatedPieces] = useState<
+    ReadonlyArray<ChessAnimatedPieceMotion>
+  >([])
+  const previousMoveIndexRef = useRef(0)
+  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   useEffect(() => {
-    setSnapshot(sceneBinding.getSnapshot())
+    const initialSnapshot = sceneBinding.getSnapshot()
+    const initialGame = sceneBinding.getGame()
+
+    if (animationTimeoutRef.current !== null) {
+      clearTimeout(animationTimeoutRef.current)
+      animationTimeoutRef.current = null
+    }
+    previousMoveIndexRef.current =
+      initialGame.history[initialGame.history.length - 1]?.index ?? 0
+    setSnapshot(initialSnapshot)
     setInteractionState((current) =>
-      syncChessInteractionState(sceneBinding.getGame(), current),
+      syncChessInteractionState(initialGame, current),
     )
     setInteractionFeedbackTone('idle')
+    setAnimatedPieces([])
 
     return sceneBinding.subscribe((nextSnapshot) => {
+      const nextGame = sceneBinding.getGame()
+      const lastRecord = nextGame.history[nextGame.history.length - 1] ?? null
+      const latestMoveIndex = lastRecord?.index ?? 0
+
       setSnapshot(nextSnapshot)
       setInteractionState((current) =>
-        syncChessInteractionState(sceneBinding.getGame(), current),
+        syncChessInteractionState(nextGame, current),
       )
       setInteractionFeedbackTone('idle')
+      setAnimatedPieces(
+        lastRecord === null || latestMoveIndex === previousMoveIndexRef.current
+          ? []
+          : createChessMoveAnimations(nextSnapshot, lastRecord),
+      )
+      previousMoveIndexRef.current = latestMoveIndex
     })
   }, [sceneBinding])
+
+  useEffect(() => {
+    if (animationTimeoutRef.current !== null) {
+      clearTimeout(animationTimeoutRef.current)
+      animationTimeoutRef.current = null
+    }
+
+    if (animatedPieces.length === 0) {
+      return
+    }
+
+    animationTimeoutRef.current = setTimeout(() => {
+      setAnimatedPieces([])
+      animationTimeoutRef.current = null
+    }, CHESS_MOVE_ANIMATION_DURATION_MS)
+
+    return () => {
+      if (animationTimeoutRef.current !== null) {
+        clearTimeout(animationTimeoutRef.current)
+        animationTimeoutRef.current = null
+      }
+    }
+  }, [animatedPieces])
 
   const { turnLabel, statusLabel, statusDetail } = useMemo(
     () => describeChessSceneStatus(snapshot),
     [snapshot],
+  )
+  const visiblePieces = useMemo(
+    () => filterScenePiecesForAnimation(snapshot.pieces, animatedPieces),
+    [animatedPieces, snapshot.pieces],
   )
   const interactionSnapshot = useMemo(
     () =>
@@ -148,9 +208,10 @@ export function ChessBoardStage({
       >
         <div className="board-stage__glow" />
         <ChessScene
+          animatedPieces={animatedPieces}
           highlightedSquares={sceneHighlights}
           onSquareSelect={handleSquareSelect}
-          pieces={snapshot.pieces}
+          pieces={visiblePieces}
           selectedSquare={interactionSnapshot.selectedSquare}
         />
       </div>
@@ -206,9 +267,8 @@ export function ChessBoardStage({
         </dl>
 
         <p className="board-stage__callout">
-          Graph task <code>{GRAPH_TASK_ID}</code> adds the first interaction
-          seam for committed moves, capture-aware destinations, and blocked
-          illegal targets.
+          Graph task <code>{GRAPH_TASK_ID}</code> adds smooth move animation,
+          mouse and touch play, and the first fully interactive 3D board loop.
         </p>
 
         <div

@@ -8,17 +8,33 @@ import { ChessBoardStage } from './ChessBoardStage'
 vi.mock('../../scene/ChessScene', () => ({
   ChessScene: ({
     pieces = [],
+    animatedPieces = [],
     highlightedSquares = [],
     onSquareSelect,
     selectedSquare = null,
   }: {
     pieces?: ReadonlyArray<{ square: string; color: string; type: string }>
+    animatedPieces?: ReadonlyArray<{
+      from: string
+      to: string
+      piece: { color: string; type: string }
+    }>
     highlightedSquares?: ReadonlyArray<{ square: string; kind: string }>
     onSquareSelect?: (square: string) => void
     selectedSquare?: string | null
   }) => (
     <div>
       <div data-testid="scene-piece-count">{`${pieces.length} scene pieces`}</div>
+      <div data-testid="scene-animated-pieces">
+        {animatedPieces.length === 0
+          ? 'none'
+          : animatedPieces
+              .map(
+                (animation) =>
+                  `${animation.from}->${animation.to}:${animation.piece.color}:${animation.piece.type}`,
+              )
+              .join(',')}
+      </div>
       <div data-testid="scene-selected-square">{selectedSquare ?? 'none'}</div>
       <div data-testid="scene-highlighted-squares">
         {highlightedSquares
@@ -63,11 +79,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-26')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-27')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-005b',
+      'chess-005c',
     )
-    expect(screen.getByText('Issue C31-26').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-27').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -189,10 +205,12 @@ describe('ChessBoardStage', () => {
     ).toBeInTheDocument()
   })
 
-  it('selects pieces from click and touch input and exposes legal targets to the scene', () => {
+  it('selects pieces from mouse and touch input and exposes legal targets to the scene', () => {
     render(<ChessBoardStage />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'select e2' }), {
+      pointerType: 'mouse',
+    })
 
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
     expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
@@ -230,16 +248,31 @@ describe('ChessBoardStage', () => {
     )
   })
 
-  it('commits a legal move from click and touch interaction', () => {
+  it('commits a legal move from mouse and touch interaction', () => {
+    vi.useFakeTimers()
+
     const { unmount } = render(<ChessBoardStage />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
-    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'select e2' }), {
+      pointerType: 'mouse',
+    })
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'select e4' }), {
+      pointerType: 'mouse',
+    })
 
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
+      'e2->e4:white:pawn',
+    )
     expect(screen.getByText('Last move: e2 -> e4')).toBeInTheDocument()
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(260)
+    })
+
+    expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent('none')
 
     unmount()
     render(<ChessBoardStage />)
@@ -255,6 +288,8 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByRole('heading', { name: 'Black to move' }),
     ).toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it('blocks illegal moves and shows subtle feedback without clearing the active selection', () => {
