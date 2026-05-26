@@ -7,8 +7,10 @@ import {
   filterScenePiecesForAnimation,
 } from '../game/chessMoveAnimations'
 import {
+  normalizeChessSquareSelectPointerType,
   shouldIgnoreDuplicateSquareSelect,
   type ChessHandledSquareSelect,
+  type ChessSquareSelectInput,
 } from '../game/chessInputDeduplication'
 import {
   createChessSceneBinding,
@@ -170,13 +172,18 @@ export function ChessBoardStage({
   const moveChipLabel =
     snapshot.lastMove === null ? 'Opening position' : `Last move: ${lastMoveLabel}`
 
-  function handleSquareSelect(square: ChessSquare) {
+  function handleSquareSelect(
+    square: ChessSquare,
+    input?: ChessSquareSelectInput,
+  ) {
     const game = sceneBinding.getGame()
     const moveIndex = game.history[game.history.length - 1]?.index ?? 0
-    const handledSelection = {
+    const handledSelection: ChessHandledSquareSelect = {
       square,
       moveIndex,
       timestampMs: Date.now(),
+      source: input?.source ?? 'pointerdown',
+      pointerType: normalizeChessSquareSelectPointerType(input?.pointerType),
     }
 
     if (

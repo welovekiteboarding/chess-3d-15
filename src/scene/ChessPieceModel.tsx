@@ -6,6 +6,10 @@ import {
   CHESS_MOVE_ANIMATION_DURATION_MS,
   resolveChessAnimationPose,
 } from '../components/game/chessMoveAnimations'
+import {
+  resolveChessSquareSelectPointerType,
+  type ChessSquareSelectInput,
+} from '../components/game/chessInputDeduplication'
 import type {
   ChessScenePiece,
   ChessSquare,
@@ -295,7 +299,7 @@ function ChessPiece({
   selectedSquare,
 }: {
   piece: ChessScenePiece
-  onSquareSelect?: (square: ChessSquare) => void
+  onSquareSelect?: (square: ChessSquare, input?: ChessSquareSelectInput) => void
   selectedSquare?: ChessSquare | null
 }) {
   const position = squareToScenePosition(piece.square, BOARD_SURFACE_Y)
@@ -305,7 +309,10 @@ function ChessPiece({
     <group
       onPointerDown={(event) => {
         event.stopPropagation()
-        onSquareSelect?.(piece.square)
+        onSquareSelect?.(piece.square, {
+          source: 'pointerdown',
+          pointerType: resolveChessSquareSelectPointerType(event),
+        })
       }}
       position={position}
       rotation={[0, piece.color === 'white' ? 0 : Math.PI, 0]}
@@ -377,7 +384,7 @@ function AnimatedChessPiece({
 interface ChessPieceRackProps {
   pieces: ReadonlyArray<ChessScenePiece>
   animatedPieces?: ReadonlyArray<ChessAnimatedPieceMotion>
-  onSquareSelect?: (square: ChessSquare) => void
+  onSquareSelect?: (square: ChessSquare, input?: ChessSquareSelectInput) => void
   selectedSquare?: ChessSquare | null
 }
 

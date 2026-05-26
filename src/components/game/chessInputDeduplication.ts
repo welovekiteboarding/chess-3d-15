@@ -1,13 +1,49 @@
 import type { ChessSquare } from '../../types/chess'
 
-// Touch browsers can deliver a follow-up activation noticeably after the first tap.
-// Keep the window wide enough to collapse that duplicate into a single board action.
+// Some input stacks deliver a follow-up click after pointer-down already handled the square.
+// Keep the window wide enough to collapse that secondary activation into a single board action.
 export const CHESS_INPUT_DEDUPLICATION_WINDOW_MS = 400
 
-export interface ChessHandledSquareSelect {
+export type ChessSquareSelectSource = 'pointerdown' | 'click'
+export type ChessSquareSelectPointerType = 'mouse' | 'touch' | 'pen' | 'unknown'
+
+export interface ChessSquareSelectInput {
+  source: ChessSquareSelectSource
+  pointerType: ChessSquareSelectPointerType
+}
+
+interface PointerTypeCarrier {
+  pointerType?: string
+  nativeEvent?: {
+    pointerType?: string
+  }
+}
+
+export interface ChessHandledSquareSelect extends ChessSquareSelectInput {
   square: ChessSquare
   moveIndex: number
   timestampMs: number
+}
+
+export function normalizeChessSquareSelectPointerType(
+  pointerType: string | undefined,
+): ChessSquareSelectPointerType {
+  switch (pointerType) {
+    case 'mouse':
+    case 'touch':
+    case 'pen':
+      return pointerType
+    default:
+      return 'unknown'
+  }
+}
+
+export function resolveChessSquareSelectPointerType(
+  event: PointerTypeCarrier,
+): ChessSquareSelectPointerType {
+  return normalizeChessSquareSelectPointerType(
+    event.pointerType ?? event.nativeEvent?.pointerType,
+  )
 }
 
 export function shouldIgnoreDuplicateSquareSelect(
@@ -22,6 +58,8 @@ export function shouldIgnoreDuplicateSquareSelect(
     previous.square === next.square &&
     previous.moveIndex === next.moveIndex &&
     elapsedMs >= 0 &&
-    elapsedMs <= CHESS_INPUT_DEDUPLICATION_WINDOW_MS
+    elapsedMs <= CHESS_INPUT_DEDUPLICATION_WINDOW_MS &&
+    previous.source === 'pointerdown' &&
+    next.source === 'click'
   )
 }

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { OrbitControls as ThreeOrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PCFSoftShadowMap } from 'three'
 import type { ChessAnimatedPieceMotion } from '../components/game/chessMoveAnimations'
+import type { ChessSquareSelectInput } from '../components/game/chessInputDeduplication'
 import { ChessBoardModel } from './ChessBoardModel'
 import { ChessPieceRack } from './ChessPieceModel'
 import type { ChessScenePiece } from '../types/chess'
@@ -83,7 +84,7 @@ interface ChessSceneProps {
   pieces: ReadonlyArray<ChessScenePiece>
   animatedPieces?: ReadonlyArray<ChessAnimatedPieceMotion>
   highlightedSquares?: ReadonlyArray<ChessSceneSquareHighlight>
-  onSquareSelect?: (square: BoardSquare) => void
+  onSquareSelect?: (square: BoardSquare, input?: ChessSquareSelectInput) => void
   selectedSquare?: BoardSquare | null
 }
 

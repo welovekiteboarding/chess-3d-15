@@ -1,5 +1,9 @@
 import { Fragment } from 'react'
 import {
+  resolveChessSquareSelectPointerType,
+  type ChessSquareSelectInput,
+} from '../components/game/chessInputDeduplication'
+import {
   BOARD_SURFACE_Y,
   BOARD_FILES,
   BOARD_RANKS,
@@ -22,7 +26,7 @@ const SQUARE_HEIGHT = BOARD_SURFACE_Y
 
 interface ChessBoardModelProps {
   highlights?: ReadonlyArray<ChessSceneSquareHighlight>
-  onSquareSelect?: (square: BoardSquare) => void
+  onSquareSelect?: (square: BoardSquare, input?: ChessSquareSelectInput) => void
 }
 
 export function ChessBoardModel({
@@ -82,7 +86,10 @@ export function ChessBoardModel({
                 castShadow
                 onPointerDown={(event) => {
                   event.stopPropagation()
-                  onSquareSelect?.(square)
+                  onSquareSelect?.(square, {
+                    source: 'pointerdown',
+                    pointerType: resolveChessSquareSelectPointerType(event),
+                  })
                 }}
                 position={[x, y, z]}
                 receiveShadow
@@ -98,7 +105,10 @@ export function ChessBoardModel({
                 <mesh
                   onPointerDown={(event) => {
                     event.stopPropagation()
-                    onSquareSelect?.(square)
+                    onSquareSelect?.(square, {
+                      source: 'pointerdown',
+                      pointerType: resolveChessSquareSelectPointerType(event),
+                    })
                   }}
                   position={[x, BOARD_SURFACE_Y + 0.012, z]}
                   rotation={[-Math.PI / 2, 0, 0]}
@@ -117,7 +127,10 @@ export function ChessBoardModel({
                 <mesh
                   onPointerDown={(event) => {
                     event.stopPropagation()
-                    onSquareSelect?.(square)
+                    onSquareSelect?.(square, {
+                      source: 'pointerdown',
+                      pointerType: resolveChessSquareSelectPointerType(event),
+                    })
                   }}
                   position={[x, BOARD_SURFACE_Y + 0.014, z]}
                   rotation={[-Math.PI / 2, 0, 0]}
@@ -135,7 +148,10 @@ export function ChessBoardModel({
                 <mesh
                   onPointerDown={(event) => {
                     event.stopPropagation()
-                    onSquareSelect?.(square)
+                    onSquareSelect?.(square, {
+                      source: 'pointerdown',
+                      pointerType: resolveChessSquareSelectPointerType(event),
+                    })
                   }}
                   position={[x, BOARD_SURFACE_Y + 0.014, z]}
                   rotation={[-Math.PI / 2, 0, 0]}

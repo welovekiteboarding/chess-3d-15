@@ -2,6 +2,10 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createChessGame, makeMove } from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
+import {
+  resolveChessSquareSelectPointerType,
+  type ChessSquareSelectInput,
+} from '../game/chessInputDeduplication'
 import type { ChessGameState, MoveInput } from '../../types/chess'
 import { ChessBoardStage } from './ChessBoardStage'
 
@@ -20,7 +24,7 @@ vi.mock('../../scene/ChessScene', () => ({
       piece: { color: string; type: string }
     }>
     highlightedSquares?: ReadonlyArray<{ square: string; kind: string }>
-    onSquareSelect?: (square: string) => void
+    onSquareSelect?: (square: string, input?: ChessSquareSelectInput) => void
     selectedSquare?: string | null
   }) => (
     <div>
@@ -44,8 +48,18 @@ vi.mock('../../scene/ChessScene', () => ({
       {['d4', 'e2', 'e4', 'e5', 'f3', 'f6', 'g1'].map((square) => (
         <button
           key={square}
-          onClick={() => onSquareSelect?.(square)}
-          onPointerDown={() => onSquareSelect?.(square)}
+          onClick={() =>
+            onSquareSelect?.(square, {
+              source: 'click',
+              pointerType: 'unknown',
+            })
+          }
+          onPointerDown={(event) =>
+            onSquareSelect?.(square, {
+              source: 'pointerdown',
+              pointerType: resolveChessSquareSelectPointerType(event),
+            })
+          }
           type="button"
         >
           {`select ${square}`}
@@ -255,6 +269,18 @@ describe('ChessBoardStage', () => {
     ).toBeInTheDocument()
 
     vi.useRealTimers()
+  })
+
+  it('allows a second touch tap on the same piece to clear the selection', () => {
+    render(<ChessBoardStage />)
+
+    const sourceSquare = screen.getByRole('button', { name: 'select e2' })
+
+    fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+
+    fireEvent.pointerDown(sourceSquare, { pointerType: 'touch' })
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('none')
   })
 
   it('surfaces capture targets distinctly when a selected piece can capture', () => {
