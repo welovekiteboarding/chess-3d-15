@@ -10,6 +10,7 @@ import {
   generateLegalMoves,
   generateSearchLegalMoves,
   generateSearchLegalMovesFromPosition,
+  hasLegalMoves,
   getPieceAtSquare,
   isInCheck,
   isSearchPositionInCheck,
@@ -291,6 +292,7 @@ describe('checks and terminal states', () => {
     expect(() => makeMove(game, { from: 'e1', to: 'e2' })).toThrow(
       /illegal move/i,
     )
+    expect(hasLegalMoves(game)).toBe(false)
   })
 
   it('keeps the automatic draw classification even when the side to move also has no legal moves', () => {
@@ -310,6 +312,35 @@ describe('checks and terminal states', () => {
     expect(game.checkedColor).toBeNull()
     expect(game.winner).toBeNull()
     expect(generateLegalMoves(game)).toEqual([])
+    expect(hasLegalMoves(game)).toBe(false)
+  })
+
+  it('derives legal-move availability from the board state instead of status metadata', () => {
+    const playableAiTurn = makeMove(createChessGame(), {
+      from: 'e2',
+      to: 'e4',
+    })
+    const staleDrawGame: ChessGameState = {
+      ...playableAiTurn,
+      status: 'draw',
+      checkedColor: null,
+      winner: null,
+    }
+    const checkmateGame = playMoves(createChessGame(), [
+      { from: 'f2', to: 'f3' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g2', to: 'g4' },
+      { from: 'd8', to: 'h4' },
+    ])
+    const staleActiveCheckmate: ChessGameState = {
+      ...checkmateGame,
+      status: 'active',
+      checkedColor: null,
+      winner: null,
+    }
+
+    expect(hasLegalMoves(staleDrawGame)).toBe(true)
+    expect(hasLegalMoves(staleActiveCheckmate)).toBe(false)
   })
 })
 
