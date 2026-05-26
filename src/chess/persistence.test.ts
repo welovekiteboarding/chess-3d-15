@@ -58,6 +58,22 @@ describe('createChessGamePersistence', () => {
 
     expect(persistence.load()).toBeNull()
   })
+
+  it('clears stale saved data when the stored schema version is unsupported', () => {
+    const storage = createMemoryStorage()
+    const persistence = createChessGamePersistence({ storage })
+
+    storage.setItem(
+      CHESS_LOCAL_GAME_STORAGE_KEY,
+      JSON.stringify({
+        version: CHESS_LOCAL_GAME_PERSISTENCE_VERSION + 1,
+        game: createChessGame(),
+      }),
+    )
+
+    expect(persistence.load()).toBeNull()
+    expect(storage.getItem(CHESS_LOCAL_GAME_STORAGE_KEY)).toBeNull()
+  })
 })
 
 describe('createPersistedChessSceneBinding', () => {
@@ -98,7 +114,7 @@ describe('createPersistedChessSceneBinding', () => {
     ).toBeDefined()
   })
 
-  it('restarts back to a fresh game after restoring a saved game', () => {
+  it('restarts back to a fresh game and clears the saved local session', () => {
     const storage = createMemoryStorage()
     const firstBinding = createPersistedChessSceneBinding({
       persistence: createChessGamePersistence({ storage }),
@@ -113,11 +129,14 @@ describe('createPersistedChessSceneBinding', () => {
 
     restoredBinding.restart()
 
+    expect(storage.getItem(CHESS_LOCAL_GAME_STORAGE_KEY)).toBeNull()
+
     const restartedBinding = createPersistedChessSceneBinding({
       persistence: createChessGamePersistence({ storage }),
     })
     const restartedGame = restartedBinding.getGame()
 
+    expect(storage.getItem(CHESS_LOCAL_GAME_STORAGE_KEY)).toBeNull()
     expect(restartedGame.turn).toBe('white')
     expect(restartedGame.history).toHaveLength(0)
     expect(
