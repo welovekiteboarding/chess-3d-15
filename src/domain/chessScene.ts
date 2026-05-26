@@ -1,5 +1,9 @@
 import { createChessGame, makeMove } from '../chess/engine'
-import { createChessGameControlsState, resignChessGame } from '../chess/gameControls'
+import {
+  createChessGameControlsState,
+  resignChessGame,
+  undoChessGame,
+} from '../chess/gameControls'
 import { oppositeColor } from './chessboard'
 import type {
   ChessMove,
@@ -49,6 +53,18 @@ export function createChessSceneBinding(
     },
     move(input: MoveInput) {
       game = makeMove(game, input)
+
+      const snapshot = createChessSceneSnapshot(game)
+      notifyListeners(listeners, snapshot)
+
+      return snapshot
+    },
+    undo(plies = 1) {
+      if (!createChessGameControlsState(game).canUndo) {
+        return createChessSceneSnapshot(game)
+      }
+
+      game = undoChessGame(game, plies)
 
       const snapshot = createChessSceneSnapshot(game)
       notifyListeners(listeners, snapshot)

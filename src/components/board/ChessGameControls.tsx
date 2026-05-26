@@ -5,17 +5,19 @@ import {
 } from '../../chess/gameControls'
 import type { ChessGameState, ChessPiece, PieceColor } from '../../types/chess'
 
-const LINEAR_ISSUE_ID = 'C31-38'
-const GRAPH_TASK_ID = 'chess-009b'
+const LINEAR_ISSUE_ID = 'C31-39'
+const GRAPH_TASK_ID = 'chess-009c'
 
 interface ChessGameControlsProps {
   game: ChessGameState
+  onUndo: () => void
   onRestart: () => void
   onResign: () => void
 }
 
 export function ChessGameControls({
   game,
+  onUndo,
   onRestart,
   onResign,
 }: ChessGameControlsProps) {
@@ -23,8 +25,10 @@ export function ChessGameControls({
   const moveHistory = createChessMoveHistory(game)
   const capturedPieces = createChessCapturedPiecesBySide(game)
   const detail = controlsState.canResign
-    ? 'Restart the current match, resign from the current seat, and review the live move ledger.'
-    : 'This match is over. Restart to begin from the original setup again.'
+    ? 'Restart the current match, undo the latest move, resign from the current seat, and review the live move ledger.'
+    : controlsState.canUndo
+      ? 'This match is over. Undo the latest move or restart from the original setup.'
+      : 'This match is over. Restart to begin from the original setup again.'
 
   return (
     <section
@@ -37,7 +41,7 @@ export function ChessGameControls({
       </p>
       <p className="board-stage__feedback-detail">{detail}</p>
       <p className="board-stage__feedback-detail">
-        {`Graph task ${GRAPH_TASK_ID} adds readable move history and captured-piece tracking on top of the restart and resignation controls.`}
+        {`Graph task ${GRAPH_TASK_ID} finishes the live controls with undo availability, readable move history, and captured-piece tracking.`}
       </p>
       <div className="board-stage__selection-grid">
         <button
@@ -46,6 +50,14 @@ export function ChessGameControls({
           type="button"
         >
           Restart game
+        </button>
+        <button
+          className="board-stage__selection-option"
+          disabled={!controlsState.canUndo}
+          onClick={onUndo}
+          type="button"
+        >
+          Undo move
         </button>
         <button
           className="board-stage__selection-option"

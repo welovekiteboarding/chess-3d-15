@@ -111,6 +111,38 @@ describe('createChessSceneBinding', () => {
     expect(updateListener.mock.calls[1]![0]).toEqual(nextSnapshot)
   })
 
+  it('undoes the latest move through the shared scene binding', () => {
+    const binding = createChessSceneBinding()
+    const updateListener = vi.fn()
+
+    binding.subscribe(updateListener)
+    binding.move({ from: 'e2', to: 'e4' })
+    binding.move({ from: 'e7', to: 'e5' })
+
+    const undoneSnapshot = binding.undo()
+
+    expect(undoneSnapshot.turn).toBe('black')
+    expect(undoneSnapshot.lastMove).toEqual({
+      from: 'e2',
+      to: 'e4',
+      promotion: null,
+    })
+    expect(
+      undoneSnapshot.pieces.find((piece) => piece.square === 'e5'),
+    ).toBeUndefined()
+    expect(
+      undoneSnapshot.pieces.find(
+        (piece) =>
+          piece.square === 'e7' &&
+          piece.color === 'black' &&
+          piece.type === 'pawn',
+      ),
+    ).toBeDefined()
+    expect(binding.getGame().history).toHaveLength(1)
+    expect(updateListener).toHaveBeenCalledTimes(4)
+    expect(updateListener.mock.calls[3]![0]).toEqual(undoneSnapshot)
+  })
+
   it('isolates move snapshots across subscribers', () => {
     const binding = createChessSceneBinding()
     const firstListener = vi.fn((snapshot) => {

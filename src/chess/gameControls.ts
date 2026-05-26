@@ -38,7 +38,30 @@ export function createChessGameControlsState(
   return {
     canRestart: true,
     canResign: !isChessGameTerminalStatus(game.status),
-    canUndo: false,
+    canUndo: game.history.length > 0 && game.status !== 'resigned',
+  }
+}
+
+export function undoChessGame(
+  game: ChessGameState,
+  plies = 1,
+): ChessGameState {
+  const nextGame = cloneChessGameState(game)
+  const normalizedPlies = Math.max(0, Math.trunc(plies))
+
+  if (nextGame.history.length === 0 || normalizedPlies === 0) {
+    return nextGame
+  }
+
+  const restoreIndex = Math.max(0, nextGame.history.length - normalizedPlies)
+  const restoredSnapshot = nextGame.history[restoreIndex]!.before
+  const remainingHistory = nextGame.history
+    .slice(0, restoreIndex)
+    .map(cloneChessMoveRecord)
+
+  return {
+    ...clonePositionSnapshot(restoredSnapshot),
+    history: remainingHistory,
   }
 }
 
