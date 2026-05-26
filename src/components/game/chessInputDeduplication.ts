@@ -12,10 +12,14 @@ export function shouldIgnoreDuplicateSquareSelect(
   previous: ChessHandledSquareSelect | null,
   next: ChessHandledSquareSelect,
 ): boolean {
+  const elapsedMs =
+    previous === null ? Number.POSITIVE_INFINITY : next.timestampMs - previous.timestampMs
+
   return (
     previous !== null &&
     previous.square === next.square &&
     previous.moveIndex === next.moveIndex &&
-    next.timestampMs - previous.timestampMs <= CHESS_INPUT_DEDUPLICATION_WINDOW_MS
+    elapsedMs >= 0 &&
+    elapsedMs <= CHESS_INPUT_DEDUPLICATION_WINDOW_MS
   )
 }

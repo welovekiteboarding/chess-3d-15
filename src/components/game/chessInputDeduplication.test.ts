@@ -56,4 +56,21 @@ describe('chessInputDeduplication', () => {
       ),
     ).toBe(false)
   })
+
+  it('allows a repeated selection when timestamps move backwards', () => {
+    expect(
+      shouldIgnoreDuplicateSquareSelect(
+        {
+          square: 'b1',
+          moveIndex: 8,
+          timestampMs: 2_000,
+        },
+        {
+          square: 'b1',
+          moveIndex: 8,
+          timestampMs: 1_950,
+        },
+      ),
+    ).toBe(false)
+  })
 })

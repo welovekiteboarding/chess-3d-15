@@ -59,9 +59,9 @@ export function createChessMoveAnimations(
 export function filterScenePiecesForAnimation(
   pieces: ReadonlyArray<ChessScenePiece>,
   animatedPieces: ReadonlyArray<ChessAnimatedPieceMotion>,
-): ChessScenePiece[] {
+): ReadonlyArray<ChessScenePiece> {
   if (animatedPieces.length === 0) {
-    return [...pieces]
+    return pieces
   }
 
   const hiddenSquares = new Set(animatedPieces.map((animation) => animation.to))

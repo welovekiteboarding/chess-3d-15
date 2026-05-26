@@ -34,6 +34,15 @@ describe('chessMoveAnimations', () => {
     expect(visiblePieces.find((piece) => piece.square === 'e4')).toBeUndefined()
   })
 
+  it('reuses the existing scene piece array when there is no active animation', () => {
+    const binding = createChessSceneBinding()
+    const snapshot = binding.getSnapshot()
+
+    expect(filterScenePiecesForAnimation(snapshot.pieces, [])).toBe(
+      snapshot.pieces,
+    )
+  })
+
   it('creates a secondary rook animation for castling moves', () => {
     const binding = createChessSceneBinding(
       createChessGame({
