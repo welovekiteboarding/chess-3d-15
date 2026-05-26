@@ -53,6 +53,11 @@ function dispatchChessSquareSelect(
     return
   }
 
+  // Keep mouse selection on click so press-and-drag can stay available for camera control.
+  if (source === 'pointerdown' && resolveChessSquareSelectPointerType(event) === 'mouse') {
+    return
+  }
+
   const timestampMs = resolveChessSquareSelectTimestampMs(event)
 
   onSquareSelect?.(square, {

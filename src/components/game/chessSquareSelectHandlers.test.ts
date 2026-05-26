@@ -29,6 +29,26 @@ describe('chessSquareSelectHandlers', () => {
     )
   })
 
+  it('ignores mouse pointer-down input so click remains the primary mouse selection path', () => {
+    const onSquareSelect = vi.fn()
+    const preventDefault = vi.fn()
+    const stopPropagation = vi.fn()
+    const handlers = createChessSquareSelectHandlers('d5', onSquareSelect)
+
+    handlers.onPointerDown({
+      nativeEvent: {
+        pointerType: 'mouse',
+      },
+      preventDefault,
+      stopPropagation,
+      timeStamp: 140,
+    })
+
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(stopPropagation).toHaveBeenCalledTimes(1)
+    expect(onSquareSelect).not.toHaveBeenCalled()
+  })
+
   it('dispatches click square selections as a fallback input source', () => {
     const onSquareSelect = vi.fn()
     const preventDefault = vi.fn()

@@ -222,9 +222,7 @@ describe('ChessBoardStage', () => {
   it('selects pieces from mouse and touch input and exposes legal targets to the scene', () => {
     render(<ChessBoardStage />)
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'select e2' }), {
-      pointerType: 'mouse',
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
 
     expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
     expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
@@ -309,12 +307,8 @@ describe('ChessBoardStage', () => {
 
     const { unmount } = render(<ChessBoardStage />)
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'select e2' }), {
-      pointerType: 'mouse',
-    })
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'select e4' }), {
-      pointerType: 'mouse',
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'select e2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'select e4' }))
 
     expect(screen.getByTestId('scene-animated-pieces')).toHaveTextContent(
       'e2->e4:white:pawn',
