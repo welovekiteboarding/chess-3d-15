@@ -2,7 +2,10 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import type { Group } from 'three'
 import type { ChessAnimatedPieceMotion } from '../components/game/chessMoveAnimations'
-import { CHESS_MOVE_ANIMATION_DURATION_MS } from '../components/game/chessMoveAnimations'
+import {
+  CHESS_MOVE_ANIMATION_DURATION_MS,
+  resolveChessAnimationPose,
+} from '../components/game/chessMoveAnimations'
 import type {
   ChessScenePiece,
   ChessSquare,
@@ -41,7 +44,6 @@ const PIECE_SCALES: Record<PieceType, number> = {
   queen: 1.06,
   king: 1.12,
 }
-const PIECE_MOVE_ARC_HEIGHT = 0.16
 
 interface PiecePrimitiveProps {
   color: PieceColor
@@ -320,7 +322,7 @@ function AnimatedChessPiece({
   animation: ChessAnimatedPieceMotion
 }) {
   const groupRef = useRef<Group | null>(null)
-  const elapsedSecondsRef = useRef(0)
+  const elapsedMsRef = useRef(0)
   const startPosition = useMemo(
     () => squareToScenePosition(animation.from, BOARD_SURFACE_Y),
     [animation.from],
@@ -330,10 +332,9 @@ function AnimatedChessPiece({
     [animation.to],
   )
   const baseScale = PIECE_SCALES[animation.piece.type]
-  const durationSeconds = CHESS_MOVE_ANIMATION_DURATION_MS / 1000
 
   useEffect(() => {
-    elapsedSecondsRef.current = 0
+    elapsedMsRef.current = 0
 
     if (groupRef.current !== null) {
       groupRef.current.position.set(...startPosition)
@@ -345,19 +346,15 @@ function AnimatedChessPiece({
       return
     }
 
-    elapsedSecondsRef.current = Math.min(
-      durationSeconds,
-      elapsedSecondsRef.current + delta,
+    elapsedMsRef.current = Math.min(
+      CHESS_MOVE_ANIMATION_DURATION_MS,
+      elapsedMsRef.current + delta * 1000,
     )
-
-    const progress =
-      durationSeconds === 0 ? 1 : elapsedSecondsRef.current / durationSeconds
-    const easedProgress = smoothstep(progress)
-    const x = interpolate(startPosition[0], endPosition[0], easedProgress)
-    const y =
-      interpolate(startPosition[1], endPosition[1], easedProgress) +
-      Math.sin(Math.PI * easedProgress) * PIECE_MOVE_ARC_HEIGHT
-    const z = interpolate(startPosition[2], endPosition[2], easedProgress)
+    const { x, y, z } = resolveChessAnimationPose(
+      startPosition,
+      endPosition,
+      elapsedMsRef.current,
+    )
 
     groupRef.current.position.set(x, y, z)
   })
@@ -405,14 +402,4 @@ export function ChessPieceRack({
       ))}
     </group>
   )
-}
-
-function interpolate(start: number, end: number, progress: number): number {
-  return start + (end - start) * progress
-}
-
-function smoothstep(progress: number): number {
-  const clampedProgress = Math.min(1, Math.max(0, progress))
-
-  return clampedProgress * clampedProgress * (3 - 2 * clampedProgress)
 }

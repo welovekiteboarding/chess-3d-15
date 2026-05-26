@@ -3,8 +3,11 @@ import { createChessGame } from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
 import {
   areSameLastMove,
+  CHESS_MOVE_ANIMATION_ARC_HEIGHT,
+  CHESS_MOVE_ANIMATION_DURATION_MS,
   createChessMoveAnimations,
   filterScenePiecesForAnimation,
+  resolveChessAnimationPose,
 } from './chessMoveAnimations'
 
 describe('chessMoveAnimations', () => {
@@ -116,5 +119,44 @@ describe('chessMoveAnimations', () => {
         { from: 'e7', to: 'e8', promotion: null },
       ),
     ).toBe(false)
+  })
+
+  it('resolves a deterministic eased pose for in-flight piece motion', () => {
+    expect(
+      resolveChessAnimationPose(
+        [0, 0.06, 0],
+        [2, 0.06, 2],
+        CHESS_MOVE_ANIMATION_DURATION_MS / 2,
+      ),
+    ).toEqual({
+      progress: 0.5,
+      x: 1,
+      y: 0.06 + CHESS_MOVE_ANIMATION_ARC_HEIGHT,
+      z: 1,
+    })
+  })
+
+  it('clamps animation poses to the source and destination endpoints', () => {
+    expect(
+      resolveChessAnimationPose([1, 0.06, -1], [3, 0.06, 1], -10),
+    ).toEqual({
+      progress: 0,
+      x: 1,
+      y: 0.06,
+      z: -1,
+    })
+
+    expect(
+      resolveChessAnimationPose(
+        [1, 0.06, -1],
+        [3, 0.06, 1],
+        CHESS_MOVE_ANIMATION_DURATION_MS + 24,
+      ),
+    ).toEqual({
+      progress: 1,
+      x: 3,
+      y: 0.06,
+      z: 1,
+    })
   })
 })
