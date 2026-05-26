@@ -1,4 +1,9 @@
-import type { ChessScenePiece, PieceColor, PieceType } from '../types/chess'
+import type {
+  ChessScenePiece,
+  ChessSquare,
+  PieceColor,
+  PieceType,
+} from '../types/chess'
 import { BOARD_SURFACE_Y, squareToScenePosition } from './boardCoordinates'
 
 const ACCENT_MATERIAL = {
@@ -276,14 +281,27 @@ function ChessPieceShape({
   }
 }
 
-function ChessPiece({ piece }: { piece: ChessScenePiece }) {
+function ChessPiece({
+  piece,
+  onSquareSelect,
+  selectedSquare,
+}: {
+  piece: ChessScenePiece
+  onSquareSelect?: (square: ChessSquare) => void
+  selectedSquare?: ChessSquare | null
+}) {
   const position = squareToScenePosition(piece.square, BOARD_SURFACE_Y)
+  const isSelected = piece.square === selectedSquare
 
   return (
     <group
+      onPointerDown={(event) => {
+        event.stopPropagation()
+        onSquareSelect?.(piece.square)
+      }}
       position={position}
       rotation={[0, piece.color === 'white' ? 0 : Math.PI, 0]}
-      scale={PIECE_SCALES[piece.type]}
+      scale={PIECE_SCALES[piece.type] * (isSelected ? 1.06 : 1)}
     >
       <ChessPieceShape color={piece.color} pieceType={piece.type} />
     </group>
@@ -292,13 +310,24 @@ function ChessPiece({ piece }: { piece: ChessScenePiece }) {
 
 interface ChessPieceRackProps {
   pieces: ReadonlyArray<ChessScenePiece>
+  onSquareSelect?: (square: ChessSquare) => void
+  selectedSquare?: ChessSquare | null
 }
 
-export function ChessPieceRack({ pieces }: ChessPieceRackProps) {
+export function ChessPieceRack({
+  pieces,
+  onSquareSelect,
+  selectedSquare,
+}: ChessPieceRackProps) {
   return (
     <group>
       {pieces.map((piece) => (
-        <ChessPiece key={`${piece.color}-${piece.type}-${piece.square}`} piece={piece} />
+        <ChessPiece
+          key={`${piece.color}-${piece.type}-${piece.square}`}
+          onSquareSelect={onSquareSelect}
+          piece={piece}
+          selectedSquare={selectedSquare}
+        />
       ))}
     </group>
   )

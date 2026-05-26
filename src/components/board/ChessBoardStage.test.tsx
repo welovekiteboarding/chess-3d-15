@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createChessGame, makeMove } from '../../chess/engine'
 import { createChessSceneBinding } from '../../domain/chessScene'
@@ -8,10 +8,33 @@ import { ChessBoardStage } from './ChessBoardStage'
 vi.mock('../../scene/ChessScene', () => ({
   ChessScene: ({
     pieces = [],
+    highlightedSquares = [],
+    onSquareSelect,
+    selectedSquare = null,
   }: {
     pieces?: ReadonlyArray<{ square: string; color: string; type: string }>
+    highlightedSquares?: ReadonlyArray<{ square: string; kind: string }>
+    onSquareSelect?: (square: string) => void
+    selectedSquare?: string | null
   }) => (
-    <div data-testid="scene-piece-count">{`${pieces.length} scene pieces`}</div>
+    <div>
+      <div data-testid="scene-piece-count">{`${pieces.length} scene pieces`}</div>
+      <div data-testid="scene-selected-square">{selectedSquare ?? 'none'}</div>
+      <div data-testid="scene-highlighted-squares">
+        {highlightedSquares
+          .map((highlight) => `${highlight.square}:${highlight.kind}`)
+          .join(',')}
+      </div>
+      <button onClick={() => onSquareSelect?.('e2')} type="button">
+        click e2
+      </button>
+      <button
+        onPointerDown={() => onSquareSelect?.('g1')}
+        type="button"
+      >
+        touch g1
+      </button>
+    </div>
   ),
 }))
 
@@ -39,11 +62,11 @@ describe('ChessBoardStage', () => {
   it('surfaces the current integration issue metadata in the live board rail', () => {
     render(<ChessBoardStage />)
 
-    expect(screen.getByText('Issue C31-24')).toBeInTheDocument()
+    expect(screen.getByText('Issue C31-25')).toBeInTheDocument()
     expect(screen.getByText('Graph task').closest('div')).toHaveTextContent(
-      'chess-004d',
+      'chess-005a',
     )
-    expect(screen.getByText('Issue C31-24').closest('aside')).toHaveAttribute(
+    expect(screen.getByText('Issue C31-25').closest('aside')).toHaveAttribute(
       'aria-live',
       'polite',
     )
@@ -163,5 +186,25 @@ describe('ChessBoardStage', () => {
     expect(
       screen.getByText('Last move: g7 -> g8 = queen'),
     ).toBeInTheDocument()
+  })
+
+  it('selects pieces from click and touch input and exposes legal targets to the scene', () => {
+    render(<ChessBoardStage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'click e2' }))
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('e2')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'e3:move,e4:move',
+    )
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'touch g1' }), {
+      pointerType: 'touch',
+    })
+
+    expect(screen.getByTestId('scene-selected-square')).toHaveTextContent('g1')
+    expect(screen.getByTestId('scene-highlighted-squares')).toHaveTextContent(
+      'f3:move,h3:move',
+    )
   })
 })
